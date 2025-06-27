@@ -132,9 +132,8 @@
             reportTableBody.innerHTML = '';
 
             try {
-                // Assuming your JSON file will be named 'volunteer_data.json'
-                // You'll need to generate this file from your SQL query (Part 2)
-                const response = await fetch('volunteer_data.json'); 
+                // CHANGED FILENAME HERE
+                const response = await fetch('2025_volunteerdata.json'); 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
@@ -146,7 +145,7 @@
 
             } catch (error) {
                 console.error("Failed to load volunteer data:", error);
-                errorMessage.textContent = `Failed to load report: ${error.message}. Please ensure 'volunteer_data.json' exists.`;
+                errorMessage.textContent = `Failed to load report: ${error.message}. Please ensure '2025_volunteerdata.json' exists.`;
                 errorMessage.style.display = 'block';
             } finally {
                 loadingMessage.style.display = 'none';
