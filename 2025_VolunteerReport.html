@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Volunteer Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="shared-utils.js"></script> 
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8f8f8;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px; /* Adjust max width for wider table */
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #0156B3;
+            font-size: 2em;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #e5f1ff;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            cursor: pointer;
+            white-space: nowrap; /* Prevent headers from wrapping too much */
+        }
+
+        th.sortable::after {
+            content: ' ⇅';
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        th.sorted-asc::after {
+            content: ' ↑';
+            color: #333;
+        }
+
+        th.sorted-desc::after {
+            content: ' ↓';
+            color: #333;
+        }
+
+        .row-group-even {
+            background-color: #ffffff;
+        }
+
+        .row-group-odd {
+            background-color: #f4f4f4;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Family Volunteer Report</h1>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort-by="familyName">Family Name</th>
+                        <th class="sortable" data-sort-by="parentNames">Parent Names</th>
+                        <th class="sortable" data-sort-by="swimmerNames">Swimmer Names</th>
+                        <th class="sortable" data-sort-by="meetsSwam">Meets Swam In</th>
+                        <th class="sortable" data-sort-by="meetsVolunteered">Meets Volunteered At</th>
+                        <th class="sortable" data-sort-by="volunteerPoints">Volunteer Points</th>
+                    </tr>
+                </thead>
+                <tbody id="reportTableBody">
+                    </tbody>
+            </table>
+            <div id="loadingMessage" style="text-align: center; padding: 20px;">Loading data...</div>
+            <div id="errorMessage" class="error" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const reportTableBody = document.getElementById('reportTableBody');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let allFamilyData = []; // This will hold our loaded and processed data
+        let currentSortColumn = null;
+        let currentSortDirection = 'asc';
+
+        // Helper function (if not already in shared-utils.js)
+        // You might need a version of formatDate if your JSON dates are not user-friendly
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' });
+        }
+
+        async function fetchAndRenderReport() {
+            loadingMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+            reportTableBody.innerHTML = '';
+
+            try {
+                // Assuming your JSON file will be named 'volunteer_data.json'
+                // You'll need to generate this file from your SQL query (Part 2)
+                const response = await fetch('volunteer_data.json'); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const rawData = await response.json();
+                
+                // Process the raw data into a more usable format for the table
+                allFamilyData = processRawFamilyData(rawData); 
+                renderTable(allFamilyData);
+
+            } catch (error) {
+                console.error("Failed to load volunteer data:", error);
+                errorMessage.textContent = `Failed to load report: ${error.message}. Please ensure 'volunteer_data.json' exists.`;
+                errorMessage.style.display = 'block';
+            } finally {
+                loadingMessage.style.display = 'none';
+            }
+        }
+
+        // IMPORTANT: This function needs to be adapted based on the exact structure of your volunteer_data.json
+        // Below is a hypothetical structure based on your request.
+        function processRawFamilyData(rawData) {
+            // RawData is expected to be an array of objects, e.g.:
+            // [
+            //   { family_id: "F1", family_name: "Smith", parent_names: "John & Jane Smith", swimmer_names: "Timmy Smith, Susie Smith",
+            //     meets_swam: "Meet A, Meet B", meets_volunteered: "Meet A, Meet C", volunteer_points: 5 },
+            //   { family_id: "F2", family_name: "Johnson", parent_names: "Alice Johnson", swimmer_names: "Bob Johnson",
+            //     meets_swam: "Meet A", meets_volunteered: "Meet A", volunteer_points: 3 }
+            // ]
+            // If your actual JSON is different, this function MUST be adjusted.
+
+            // For now, let's assume rawData is an array of family objects directly
+            return rawData.map(item => ({
+                familyName: item.family_name || 'N/A',
+                parentNames: item.parent_names || 'N/A',
+                swimmerNames: item.swimmer_names || 'N/A',
+                meetsSwam: item.meets_swam || 'N/A',
+                meetsVolunteered: item.meets_volunteered || 'N/A',
+                volunteerPoints: parseFloat(item.volunteer_points) || 0
+            }));
+        }
+
+
+        function renderTable(data) {
+            reportTableBody.innerHTML = ''; // Clear existing rows
+
+            if (data.length === 0) {
+                reportTableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">No family data found.</td></tr>`;
+                return;
+            }
+
+            data.forEach((family, index) => {
+                const row = document.createElement('tr');
+                row.className = index % 2 === 0 ? 'row-group-even' : 'row-group-odd';
+                row.innerHTML = `
+                    <td>${family.familyName}</td>
+                    <td>${family.parentNames}</td>
+                    <td>${family.swimmerNames}</td>
+                    <td>${family.meetsSwam}</td>
+                    <td>${family.meetsVolunteered}</td>
+                    <td>${family.volunteerPoints}</td>
+                `;
+                reportTableBody.appendChild(row);
+            });
+        }
+
+        function sortTable(columnName) {
+            const isNumeric = (columnName === 'volunteerPoints'); // Add other numeric columns if any
+
+            // Determine sort direction
+            if (currentSortColumn === columnName) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = columnName;
+                currentSortDirection = 'asc';
+            }
+
+            // Apply sorting logic
+            allFamilyData.sort((a, b) => {
+                let valA = a[columnName];
+                let valB = b[columnName];
+
+                if (isNumeric) {
+                    valA = parseFloat(valA);
+                    valB = parseFloat(valB);
+                    if (isNaN(valA)) valA = -Infinity; // Handle N/A or non-numeric as very low for sorting
+                    if (isNaN(valB)) valB = -Infinity;
+                } else {
+                    // For string comparison, ensure case-insensitivity
+                    valA = String(valA).toLowerCase();
+                    valB = String(valB).toLowerCase();
+                }
+
+                if (valA < valB) {
+                    return currentSortDirection === 'asc' ? -1 : 1;
+                }
+                if (valA > valB) {
+                    return currentSortDirection === 'asc' ? 1 : -1;
+                }
+                return 0; // Values are equal
+            });
+
+            // Update header classes for sort indicators
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+                if (th.dataset.sortBy === currentSortColumn) {
+                    th.classList.add(`sorted-${currentSortDirection}`);
+                }
+            });
+
+            renderTable(allFamilyData); // Re-render table with sorted data
+        }
+
+        // Add event listeners for sorting
+        document.querySelectorAll('th.sortable').forEach(header => {
+            header.addEventListener('click', () => sortTable(header.dataset.sortBy));
+        });
+
+        // Initial fetch and render when the page loads
+        document.addEventListener('DOMContentLoaded', fetchAndRenderReport);
+    </script>
+</body>
+</html>
