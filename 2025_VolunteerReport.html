@@ -5,20 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volunteer Requirement Report</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #333; }
-        p { color: #555; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; }
-        th { background-color: #f2f2f2; font-weight: bold; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .competed-yes { background-color: #e6ffe6; } /* Light green */
-        .competed-no { background-color: #fff0f0; } /* Light red */
-        .met-yes { font-weight: bold; color: green; }
-        .met-no { font-weight: bold; color: red; }
-        .met-na { color: gray; }
-        .loading-message { color: blue; font-style: italic; }
-        .error-message { color: red; font-weight: bold; }
+        /* General Body and Heading Styles */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px; }
+        p { color: #555; line-height: 1.5; }
+
+        /* Loading and Error Messages */
+        .loading-message { color: #3498db; font-style: italic; text-align: center; padding: 20px; }
+        .error-message { color: #e74c3c; font-weight: bold; text-align: center; padding: 20px; border: 1px solid #e74c3c; background-color: #ffe6e6; }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden; /* Ensures border-radius applies to corners */
+        }
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 12px 15px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #34495e;
+            color: #ecf0f1;
+            font-weight: bold;
+            cursor: pointer; /* Indicate clickable for sorting */
+            user-select: none; /* Prevent text selection on click */
+            position: relative; /* For sort arrow positioning */
+        }
+        th:hover {
+            background-color: #2c3e50;
+        }
+        tr:nth-child(even) { background-color: #fdfdfd; }
+        tr:nth-child(odd) { background-color: #ffffff; }
+        tbody tr:hover { background-color: #eaf6ff; } /* Hover effect for rows */
+
+        /* Conditional Styling for Competed / Met Requirement */
+        .competed-yes { background-color: #d4edda; /* Lighter green */ }
+        .competed-no { background-color: #f8d7da; /* Lighter red */ }
+        .met-yes { font-weight: bold; color: #28a745; } /* Darker green */
+        .met-no { font-weight: bold; color: #dc3545; } /* Darker red */
+        .met-na { color: #6c757d; font-style: italic; } /* Grayed out */
+
+        /* Sort Arrows */
+        .sort-arrow {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .sort-arrow.asc {
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 5px solid #ecf0f1;
+        }
+        .sort-arrow.desc {
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #ecf0f1;
+        }
     </style>
 </head>
 <body>
@@ -29,9 +80,11 @@
     <div id="report-container" class="loading-message">Loading report data...</div>
 
     <script>
-        
-        const PARENT_DATA_URL = ‘https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
-        const SWIMMER_DATA_URL = ‘https://raw.githubusercontent.com/MamaHubbs/Volunteers/refs/heads/main/2025_swimmerdata.json'; 
+
+        const PARENT_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
+        const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json'; // IMPORTANT: CHECK REPO NAME HERE
+
+        let allReportRows = []; // Store the processed data globally for sorting
 
         // Helper function to convert Dataclip JSON format to array of objects
         function parseDataclipJson(data) {
@@ -57,27 +110,115 @@
                     throw new Error(`HTTP error! Status: ${response.status} for ${url}`);
                 }
                 const rawData = await response.json();
-                return parseDataclipJson(rawData); // Parse the Dataclip format
+                return parseDataclipJson(rawData);
             } catch (error) {
                 console.error(`Error loading or parsing data from ${url}:`, error);
                 const container = document.getElementById('report-container');
                 container.innerHTML = `<p class="error-message">Failed to load data from ${url}. Please check the URL, network, or JSON format. Error: ${error.message}</p>`;
-                throw error; // Re-throw to stop further processing
+                throw error;
             }
         }
+
+        function renderTableBody(dataRows) {
+            const tbody = document.querySelector('#report-container tbody');
+            if (!tbody) return; // Ensure tbody exists
+
+            tbody.innerHTML = ''; // Clear existing rows
+
+            dataRows.forEach(rowData => {
+                const competedClass = rowData["Competed YES/NO"] === "YES" ? "competed-yes" : "competed-no";
+                const metClass = rowData["Met Requirement"] === "YES" ? "met-yes" :
+                                 (rowData["Met Requirement"].startsWith("NO") ? "met-no" : "met-na");
+
+                const rowHtml = `
+                    <tr class="${competedClass}">
+                        <td>${rowData["Meet Date"] || "N/A"}</td>
+                        <td>${rowData["Meet Name"] || "N/A"}</td>
+                        <td>${rowData["Swimmer Name"] || "N/A"}</td>
+                        <td>${rowData["Competed YES/NO"] || "N/A"}</td>
+                        <td>${rowData["Parent Name"] || "N/A"}</td>
+                        <td>${rowData["Job"] || "N/A"}</td>
+                        <td>${rowData["Shift"] || "N/A"}</td>
+                        <td>${rowData["Points"] || "N/A"}</td>
+                        <td class="${metClass}">${rowData["Met Requirement"] || "N/A"}</td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', rowHtml);
+            });
+        }
+
+        let currentSortKey = "Meet Date"; // Default sort column
+        let currentSortDirection = "asc"; // Default sort direction
+
+        function sortTable(key) {
+            // If clicking the same header, toggle direction
+            if (currentSortKey === key) {
+                currentSortDirection = (currentSortDirection === "asc") ? "desc" : "asc";
+            } else {
+                currentSortKey = key;
+                currentSortDirection = "asc"; // Default to asc for new column
+            }
+
+            // Perform the sort
+            allReportRows.sort((a, b) => {
+                const valA = a[key];
+                const valB = b[key];
+
+                let comparison = 0;
+
+                // Handle specific sorting logic for numbers, dates, and strings
+                if (key === "Meet Date") {
+                    comparison = new Date(valA) - new Date(valB);
+                } else if (key === "Points") { // Assuming points are numbers
+                    comparison = (parseFloat(valA) || 0) - (parseFloat(valB) || 0); // Convert to number, default to 0 if N/A
+                } else if (key === "Competed YES/NO" || key === "Met Requirement") {
+                    // Custom sort order: YES, N/A, NO (or YES, NO, N/A)
+                    const order = {"YES": 1, "N/A (No Child Competed)": 2, "NO (Child Competed, Parent Not Volunteered)": 3, "N/A": 4};
+                    comparison = (order[valA] || 99) - (order[valB] || 99); // Use a high number for unknown states
+                } else {
+                    // Default string comparison for others
+                    comparison = String(valA).localeCompare(String(valB));
+                }
+
+                return currentSortDirection === "asc" ? comparison : -comparison;
+            });
+
+            // Update sort arrows in headers
+            document.querySelectorAll('th[data-sort-key] .sort-arrow').forEach(arrow => arrow.classList.remove('asc', 'desc'));
+            const currentArrow = document.querySelector(`th[data-sort-key="${currentSortKey}"] .sort-arrow`);
+            if (currentArrow) {
+                currentArrow.classList.add(currentSortDirection);
+            }
+
+            renderTableBody(allReportRows); // Re-render the table with sorted data
+        }
+
+        function initSorting() {
+            document.querySelectorAll('th[data-sort-key]').forEach(header => {
+                header.addEventListener('click', () => {
+                    const key = header.getAttribute('data-sort-key');
+                    sortTable(key);
+                });
+                // Add initial arrow span
+                header.insertAdjacentHTML('beforeend', '<span class="sort-arrow"></span>');
+            });
+
+            // Trigger initial sort on default key
+            sortTable(currentSortKey);
+        }
+
 
         async function generateReport() {
             const container = document.getElementById('report-container');
             container.innerHTML = '<p class="loading-message">Processing data...</p>';
 
-            let swimmersCompeting = []; // Renamed to reflect parsed data
-            let parentVolunteers = [];   // Renamed to reflect parsed data
+            let swimmersCompeting = [];
+            let parentVolunteers = [];
 
             try {
                 swimmersCompeting = await loadJsonData(SWIMMER_DATA_URL);
                 parentVolunteers = await loadJsonData(PARENT_DATA_URL);
             } catch (error) {
-                // Error already handled by loadJsonData, just return
                 return;
             }
 
@@ -86,10 +227,8 @@
                 return;
             }
 
-            // --- Step 1: Create a lookup for swimmers who competed in each meet ---
-            // Structure: {'Meet Name': {'YYYY-MM-DD': Set('Swimmer Name')}}
             const competedSwimmersByMeet = {};
-            swimmersCompeting.forEach(row => { // Loop through the already parsed objects
+            swimmersCompeting.forEach(row => {
                 const meetName = row["Meet Name"];
                 const meetDate = row["Meet Date"];
                 const swimmerName = row["Swimmer Name"];
@@ -106,15 +245,14 @@
                 }
             });
 
-            // --- Step 2: Process Parent Volunteer Data ---
-            const reportRows = [];
+            const tempReportRows = []; // Use a temp array before setting to allReportRows
             const processedParentJobCombos = new Set();
             const processedSwimmerMeetCombos = new Set();
 
-            parentVolunteers.forEach(parentRow => { // Loop through the already parsed objects
+            parentVolunteers.forEach(parentRow => {
                 const meetDate = parentRow["Meet Date"];
                 const meetName = parentRow["Meet Name"];
-                const parentName = parentRow.Parent; // Access directly as property
+                const parentName = parentRow.Parent;
                 const job = parentRow.Job;
                 const shift = parentRow.Shift;
                 const points = parentRow.Points;
@@ -126,7 +264,7 @@
                 processedParentJobCombos.add(parentJobId);
 
                 const associatedSwimmersList = [];
-                for (let i = 1; i <= 9; i++) { // Assuming Swimmer 1 to Swimmer 9 columns
+                for (let i = 1; i <= 9; i++) {
                     const swimmerCol = parentRow[`Swimmer ${i}`];
                     if (swimmerCol) {
                         associatedSwimmersList.push(swimmerCol);
@@ -150,7 +288,7 @@
                     metRequirement = "N/A (No Child Competed)";
                 }
 
-                reportRows.push({
+                tempReportRows.push({
                     "Meet Date": meetDate,
                     "Meet Name": meetName,
                     "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
@@ -163,12 +301,11 @@
                 });
             });
 
-            // --- Step 3: Add Swimmers who competed but whose parents did NOT volunteer for that specific meet ---
             for (const meetName in competedSwimmersByMeet) {
                 for (const meetDate in competedSwimmersByMeet[meetName]) {
                     for (const swimmerName of competedSwimmersByMeet[meetName][meetDate]) {
                         if (!processedSwimmerMeetCombos.has(`${meetDate}|${meetName}|${swimmerName}`)) {
-                            reportRows.push({
+                            tempReportRows.push({
                                 "Meet Date": meetDate,
                                 "Meet Name": meetName,
                                 "Swimmer Name": swimmerName,
@@ -184,64 +321,31 @@
                 }
             }
 
-            // --- Step 4: Sort the report rows for better readability ---
-            reportRows.sort((a, b) => {
-                let comparison = a["Meet Date"].localeCompare(b["Meet Date"]);
-                if (comparison !== 0) return comparison;
-                comparison = a["Meet Name"].localeCompare(b["Meet Name"]);
-                if (comparison !== 0) return comparison;
-                const parentA = a["Parent Name"] === "N/A (No Volunteer)" ? "ZZZ" : a["Parent Name"];
-                const parentB = b["Parent Name"] === "N/A (No Volunteer)" ? "ZZZ" : b["Parent Name"];
-                comparison = parentA.localeCompare(parentB);
-                if (comparison !== 0) return comparison;
-                return a["Swimmer Name"].localeCompare(b["Swimmer Name"]);
-            });
+            allReportRows = tempReportRows; // Assign to global variable after all processing
 
-            // --- Step 5: Generate and insert HTML Table ---
-            let tableHtml = `
+            // Initial table structure
+            let initialTableHtml = `
                 <table>
                     <thead>
                         <tr>
-                            <th>Meet Date</th>
-                            <th>Meet Name</th>
-                            <th>Swimmer(s)</th>
-                            <th>Competed?</th>
-                            <th>Parent Name</th>
-                            <th>Job</th>
-                            <th>Shift</th>
-                            <th>Points</th>
-                            <th>Met Requirement</th>
+                            <th data-sort-key="Meet Date">Meet Date</th>
+                            <th data-sort-key="Meet Name">Meet Name</th>
+                            <th data-sort-key="Swimmer Name">Swimmer(s)</th>
+                            <th data-sort-key="Competed YES/NO">Competed?</th>
+                            <th data-sort-key="Parent Name">Parent Name</th>
+                            <th data-sort-key="Job">Job</th>
+                            <th data-sort-key="Shift">Shift</th>
+                            <th data-sort-key="Points">Points</th>
+                            <th data-sort-key="Met Requirement">Met Requirement</th>
                         </tr>
                     </thead>
                     <tbody>
-            `;
-
-            reportRows.forEach(rowData => {
-                const competedClass = rowData["Competed YES/NO"] === "YES" ? "competed-yes" : "competed-no";
-                const metClass = rowData["Met Requirement"] === "YES" ? "met-yes" :
-                                 (rowData["Met Requirement"].startsWith("NO") ? "met-no" : "met-na");
-
-                tableHtml += `
-                    <tr class="${competedClass}">
-                        <td>${rowData["Meet Date"] || "N/A"}</td>
-                        <td>${rowData["Meet Name"] || "N/A"}</td>
-                        <td>${rowData["Swimmer Name"] || "N/A"}</td>
-                        <td>${rowData["Competed YES/NO"] || "N/A"}</td>
-                        <td>${rowData["Parent Name"] || "N/A"}</td>
-                        <td>${rowData["Job"] || "N/A"}</td>
-                        <td>${rowData["Shift"] || "N/A"}</td>
-                        <td>${rowData["Points"] || "N/A"}</td>
-                        <td class="${metClass}">${rowData["Met Requirement"] || "N/A"}</td>
-                    </tr>
-                `;
-            });
-
-            tableHtml += `
-                    </tbody>
+                        </tbody>
                 </table>
             `;
+            container.innerHTML = initialTableHtml; // Insert the empty table structure
 
-            container.innerHTML = tableHtml;
+            initSorting(); // Initialize sorting after table structure is in DOM
         }
 
         document.addEventListener('DOMContentLoaded', generateReport);
