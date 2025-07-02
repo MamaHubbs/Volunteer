@@ -5,104 +5,150 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volunteer Requirement Report</title>
     <style>
-        /* General Body and Heading Styles */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
-        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px; }
-        p { color: #555; line-height: 1.5; }
+        /* BASE STYLES FROM USER'S WEBSITE */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8f8f8;
+            color: #333;
+        }
 
-        /* Loading and Error Messages */
-        .loading-message { color: #3498db; font-style: italic; text-align: center; padding: 20px; }
-        .error-message { color: #e74c3c; font-weight: bold; text-align: center; padding: 20px; border: 1px solid #e74c3c; background-color: #ffe6e6; }
+        h1 {
+            text-align: center;
+            color: #0156B3;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        /* Filter/Dropdown Section - Renamed classes to match provided CSS */
+        .dropdown-container {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 0.7em;
+            position: sticky; /* Makes it stick at the top */
+            top: 0;
+            background-color: #f8f8f8;
+            padding: 10px 0;
+            z-index: 1000; /* Ensures it stays above the table header when scrolling */
+            border-bottom: 1px solid #ccc;
+        }
+
+        .dropdown-box {
+            display: inline-block;
+            margin: 0 4px;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        select, input[type="text"] {
+            padding: 3px 6px;
+            font-size: 0.7em;
+            border-radius: 4px;
+            border: 1px solid #ccc; /* Added border that was missing in user's provided CSS for select/input */
+        }
+
+        button {
+            padding: 4px 8px;
+            font-size: 0.7em;
+            border-radius: 4px;
+            background-color: #0156B3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
 
         /* Table Styling */
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 0.9em;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            overflow: hidden;
+            font-size: 0.68em;
+            margin-top: 10px;
+            /* Removed box-shadow, border-radius as they were not in the new base style */
         }
-        th, td {
-            border: 1px solid #e0e0e0;
-            padding: 12px 15px;
-            text-align: left;
-            vertical-align: middle;
-        }
-        th {
-            background-color: #34495e;
-            color: #ecf0f1;
-            font-weight: bold;
-            cursor: pointer;
-            user-select: none;
-            position: relative;
-        }
-        th:hover {
-            background-color: #2c3e50;
-        }
-        tr:nth-child(even) { background-color: #fdfdfd; }
-        tr:nth-child(odd) { background-color: #ffffff; }
-        tbody tr:hover { background-color: #eaf6ff; }
 
-        /* Conditional Styling for Competed / Met Requirement */
+        th, td {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #e5f1ff;
+            position: sticky;
+            top: 50px; /* Stays below the sticky dropdown-container */
+            z-index: 1; /* Stays above table body */
+            cursor: pointer;
+            white-space: nowrap; /* Prevent header text from wrapping */
+        }
+        
+        /* Sort Arrows - Using the th.sortable::after pseudo-element */
+        th.sortable::after {
+            content: ' \21C5'; /* Default up-down arrow */
+            font-size: 0.68em;
+            color: #666;
+            margin-left: 5px; /* Added spacing */
+        }
+        th.sortable.asc::after { /* Specific arrow for ascending sort */
+            content: ' \25B2'; /* Up-pointing triangle */
+            color: #0156B3; /* Highlight color */
+        }
+        th.sortable.desc::after { /* Specific arrow for descending sort */
+            content: ' \25BC'; /* Down-pointing triangle */
+            color: #0156B3; /* Highlight color */
+        }
+
+        /* Alternating row colors from user's CSS */
+        .row-group-even { /* Note: These classes are not dynamically added by current JS */
+            background-color: #ffffff;
+        }
+        .row-group-odd { /* Note: These classes are not dynamically added by current JS */
+            background-color: #f0f0f0;
+        }
+        /* Keeping basic nth-child for now */
+        tbody tr:nth-child(even) { background-color: #fdfdfd; } /* Slightly different from row-group-even */
+        tbody tr:nth-child(odd) { background-color: #ffffff; } /* Slightly different from row-group-odd */
+        
+        tbody tr:hover { background-color: #eaf6ff; } /* Keeping hover from previous version */
+
+        /* Error Message - Renamed class to match user's CSS */
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        /* Column Widths - Adjusted to fit 9 columns and content better, while keeping user's style intent */
+        th:nth-child(1), td:nth-child(1) { max-width: 90px; width: 9%; }   /* Meet Date */
+        th:nth-child(2), td:nth-child(2) { max-width: 160px; width: 18%; } /* Meet Name */
+        th:nth-child(3), td:nth-child(3) { max-width: 140px; width: 15%; } /* Swimmer(s) */
+        th:nth-child(4), td:nth-child(4) { max-width: 60px; width: 7%; text-align: center; } /* Competed? */
+        th:nth-child(5), td:nth-child(5) { max-width: 140px; width: 15%; } /* Parent Name */
+        th:nth-child(6), td:nth-child(6) { max-width: 80px; width: 8%; }   /* Job */
+        th:nth-child(7), td:nth-child(7) { max-width: 100px; width: 11%; } /* Shift */
+        th:nth-child(8), td:nth-child(8) { max-width: 40px; width: 5%; text-align: center; } /* Points */
+        th:nth-child(9), td:nth-child(9) { max-width: 110px; width: 12%; } /* Met Requirement */
+
+        /* Cell content overflow from user's CSS */
+        td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Conditional Styling for Competed / Met Requirement - Keeping these specific colors */
         .competed-yes { background-color: #d4edda; }
         .competed-no { background-color: #f8d7da; }
         .met-yes { font-weight: bold; color: #28a745; }
         .met-no { font-weight: bold; color: #dc3545; }
         .met-na { color: #6c757d; font-style: italic; }
 
-        /* Sort Arrows */
-        .sort-arrow {
-            display: inline-block;
-            width: 0;
-            height: 0;
-            margin-left: 8px;
-            vertical-align: middle;
-        }
-        .sort-arrow.asc {
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-bottom: 5px solid #ecf0f1;
-        }
-        .sort-arrow.desc {
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-top: 5px solid #ecf0f1;
-        }
-
-        /* Filter Section Styling */
-        .filter-section {
-            background-color: #ffffff;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .filter-section div.filter-group {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .filter-section label {
-            font-weight: bold;
-            color: #34495e;
-        }
-        .filter-section select {
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 0.9em;
-            flex-grow: 1;
-            max-width: 300px;
-            background-color: white;
-            cursor: pointer;
-        }
+        /* Loading message - Adjusted from error-message to a more general class name */
+        .loading-message { color: #3498db; font-style: italic; text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
@@ -110,14 +156,14 @@
     <p>This report helps compare swimmers who competed in a meet with parents who volunteered. <br>
        <strong>Rule:</strong> If a family had a swimmer competing in a meet, a parent should have volunteered for that meet.</p>
 
-    <div class="filter-section">
-        <div class="filter-group">
+    <div class="dropdown-container">
+        <div class="dropdown-box">
             <label for="parentNameFilterSelect">Parent Name:</label>
             <select id="parentNameFilterSelect">
                 <option value="">All Parents</option>
             </select>
         </div>
-        <div class="filter-group">
+        <div class="dropdown-box">
             <label for="metRequirementFilterSelect">Met Requirement:</label>
             <select id="metRequirementFilterSelect">
                 <option value="">All Statuses</option>
@@ -142,7 +188,6 @@
         let currentFilterParentName = "";
         let currentFilterMetRequirement = "";
 
-        // Helper function to convert Dataclip JSON format to array of objects
         function parseDataclipJson(data) {
             if (!data || !Array.isArray(data.fields) || !Array.isArray(data.values)) {
                 console.warn("Provided data does not match expected Dataclip JSON format:", data);
@@ -170,7 +215,7 @@
             } catch (error) {
                 console.error(`Error loading or parsing data from ${url}:`, error);
                 const container = document.getElementById('report-container');
-                container.innerHTML = `<p class="error-message">Failed to load data from ${url}. Please check the URL, network, or JSON format. Error: ${error.message}</p>`;
+                container.innerHTML = `<p class="error">Failed to load data from ${url}. Please check the URL, network, or JSON format. Error: ${error.message}</p>`;
                 throw error;
             }
         }
@@ -213,14 +258,11 @@
 
             // Apply Parent Name filter
             if (currentFilterParentName && currentFilterParentName !== "") {
-                const filterParentNames = currentFilterParentName.split('; ').map(name => name.trim()); // Handle multiple parents
+                const filterParentNames = currentFilterParentName.split('; ').map(name => name.trim());
 
                 filteredRows = filteredRows.filter(row => {
-                    // Check parent name for volunteer rows, or associated parents for non-volunteer rows
-                    const parentNamesToSearch = row._allParentNamesForFilter || []; // Use the new internal property
-
-                    // Check if any of the filterParentNames is included in the row's parent names
-                    return filterParentNames.some(filterName => parentNamesToSearch.includes(filterName));
+                    const rowParents = row._allParentNamesForFilter || []; // Use the new internal property
+                    return filterParentNames.some(filterName => rowParents.includes(filterName));
                 });
             }
 
@@ -269,6 +311,9 @@
 
         function initSorting() {
             document.querySelectorAll('th[data-sort-key]').forEach(header => {
+                // Add the 'sortable' class to headers that can be sorted
+                header.classList.add('sortable');
+
                 header.addEventListener('click', () => {
                     const key = header.getAttribute('data-sort-key');
                     if (currentSortKey === key) {
@@ -278,18 +323,16 @@
                         currentSortDirection = "asc";
                     }
 
-                    document.querySelectorAll('th[data-sort-key] .sort-arrow').forEach(arrow => arrow.classList.remove('asc', 'desc'));
-                    const currentArrow = document.querySelector(`th[data-sort-key="${currentSortKey}"] .sort-arrow`);
-                    if (currentArrow) {
-                        currentArrow.classList.add(currentSortDirection);
-                    }
+                    // Remove existing sort direction classes from all headers
+                    document.querySelectorAll('th[data-sort-key]').forEach(th => th.classList.remove('asc', 'desc'));
+                    // Add the correct sort direction class to the currently sorted header
+                    header.classList.add(currentSortDirection);
 
                     applyFiltersAndSort();
                 });
-                if (!header.querySelector('.sort-arrow')) {
-                    header.insertAdjacentHTML('beforeend', '<span class="sort-arrow"></span>');
-                }
+                // The sort arrow is handled by CSS ::after pseudo-element based on .sortable, .asc, .desc classes
             });
+            // Initial sort applied in generateReport via applyFiltersAndSort
         }
 
         function populateParentFilterDropdown(parentVolunteersData, swimmersCompetingData) {
@@ -303,10 +346,11 @@
                 }
             });
 
-            // Add parents associated with competing swimmers (from new column)
+            // Add parents associated with competing swimmers (from new column in swimmerData)
             swimmersCompetingData.forEach(row => {
                 const parentsString = row["Associated Parents For Swimmer"];
                 if (parentsString && parentsString !== "No Parent Linked (for Swimmer)") {
+                    // Split the string and add each individual parent name
                     parentsString.split('; ').forEach(parent => uniqueParents.add(parent.trim()));
                 }
             });
@@ -361,14 +405,14 @@
                 const meetDate = row["Meet Date"];
                 const swimmerName = row["Swimmer Name"];
                 const countResults = row["Count of Events With Results"] || 0;
-                const associatedParents = row["Associated Parents For Swimmer"]; // Get new parents string
+                const associatedParents = row["Associated Parents For Swimmer"];
 
                 if (meetName && meetDate && swimmerName && countResults > 0) {
                     if (!(meetName in competedSwimmersByMeet)) {
                         competedSwimmersByMeet[meetName] = {};
                     }
                     if (!(meetDate in competedSwimmersByMeet[meetName])) {
-                        competedSwimmersByMeet[meetName][meetDate] = {}; // Now an object to store parent string
+                        competedSwimmersByMeet[meetName][meetDate] = {};
                     }
                     competedSwimmersByMeet[meetName][meetDate][swimmerName] = associatedParents; // Store parents for this swimmer
                 }
@@ -404,7 +448,7 @@
                 for (const swimmer of associatedSwimmersList) {
                     if (meetName in competedSwimmersByMeet &&
                        meetDate in competedSwimmersByMeet[meetName] &&
-                       swimmer in competedSwimmersByMeet[meetName][meetDate]) { // Check if swimmer exists in lookup
+                       swimmer in competedSwimmersByMeet[meetName][meetDate]) {
                         competedStatus = "YES";
                         processedSwimmerMeetCombos.add(`${meetDate}|${meetName}|${swimmer}`);
                     }
@@ -422,32 +466,34 @@
                     "Meet Name": meetName,
                     "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
                     "Competed YES/NO": competedStatus,
-                    "Parent Name": parentName,
+                    "Parent Name": parentName, // This is the volunteer parent
                     "Job": job,
                     "Shift": shift,
                     "Points": points,
                     "Met Requirement": metRequirement,
-                    "_allParentNamesForFilter": parentName.split('; ').map(name => name.trim()).filter(name => name !== "N/A (No Volunteer)") // Store for filtering
+                    // Store the volunteer parent's name for filtering
+                    _allParentNamesForFilter: [parentName].filter(name => name !== "N/A (No Volunteer)")
                 };
                 tempReportRows.push(row);
             });
 
             for (const meetName in competedSwimmersByMeet) {
                 for (const meetDate in competedSwimmersByMeet[meetName]) {
-                    for (const swimmerName in competedSwimmersByMeet[meetName][meetDate]) { // Iterate through swimmer names as keys
-                        const swimmerParents = competedSwimmersByMeet[meetName][meetDate][swimmerName]; // Get parents for this swimmer
+                    for (const swimmerName in competedSwimmersByMeet[meetName][meetDate]) {
+                        const swimmerParents = competedSwimmersByMeet[meetName][meetDate][swimmerName];
                         if (!processedSwimmerMeetCombos.has(`${meetDate}|${meetName}|${swimmerName}`)) {
                             const row = {
                                 "Meet Date": meetDate,
                                 "Meet Name": meetName,
                                 "Swimmer Name": swimmerName,
                                 "Competed YES/NO": "YES",
-                                "Parent Name": swimmerParents, // Now shows the actual associated parent(s)
+                                "Parent Name": swimmerParents, // Display associated parents from swimmer data
                                 "Job": "N/A",
                                 "Shift": "N/A",
                                 "Points": "N/A",
                                 "Met Requirement": "NO (Child Competed, Parent Not Volunteered)",
-                                "_allParentNamesForFilter": swimmerParents.split('; ').map(name => name.trim()).filter(name => name !== "No Parent Linked (for Swimmer)") // Store for filtering
+                                // Store the associated swimmer parents for filtering
+                                _allParentNamesForFilter: swimmerParents.split('; ').map(name => name.trim()).filter(name => name !== "No Parent Linked (for Swimmer)")
                             };
                             tempReportRows.push(row);
                         }
@@ -461,15 +507,15 @@
                 <table>
                     <thead>
                         <tr>
-                            <th data-sort-key="Meet Date">Meet Date<span class="sort-arrow"></span></th>
-                            <th data-sort-key="Meet Name">Meet Name<span class="sort-arrow"></span></th>
-                            <th data-sort-key="Swimmer Name">Swimmer(s)<span class="sort-arrow"></span></th>
-                            <th data-sort-key="Competed YES/NO">Competed?<span class="sort-arrow"></span></th>
-                            <th data-sort-key="Parent Name">Parent Name<span class="sort-arrow"></span></th>
-                            <th data-sort-key="Job">Job<span class="sort-arrow"></span></th>
-                            <th data-sort-key="Shift">Shift<span class="sort-arrow"></span></th>
-                            <th data-sort-key="Points">Points<span class="sort-arrow"></span></th>
-                            <th data-sort-key="Met Requirement">Met Requirement<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Meet Date">Meet Date</th>
+                            <th data-sort-key="Meet Name">Meet Name</th>
+                            <th data-sort-key="Swimmer Name">Swimmer(s)</th>
+                            <th data-sort-key="Competed YES/NO">Competed?</th>
+                            <th data-sort-key="Parent Name">Parent Name</th>
+                            <th data-sort-key="Job">Job</th>
+                            <th data-sort-key="Shift">Shift</th>
+                            <th data-sort-key="Points">Points</th>
+                            <th data-sort-key="Met Requirement">Met Requirement</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -478,7 +524,7 @@
             `;
             container.innerHTML = initialTableHtml;
 
-            populateParentFilterDropdown(parentVolunteers, swimmersCompeting); // Pass both datasets
+            populateParentFilterDropdown(parentVolunteers, swimmersCompeting);
             initMetRequirementFilter();
             initSorting();
 
