@@ -22,7 +22,7 @@
             font-size: 0.9em;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
-            overflow: hidden; /* Ensures border-radius applies to corners */
+            overflow: hidden;
         }
         th, td {
             border: 1px solid #e0e0e0;
@@ -34,23 +34,23 @@
             background-color: #34495e;
             color: #ecf0f1;
             font-weight: bold;
-            cursor: pointer; /* Indicate clickable for sorting */
-            user-select: none; /* Prevent text selection on click */
-            position: relative; /* For sort arrow positioning */
+            cursor: pointer;
+            user-select: none;
+            position: relative;
         }
         th:hover {
             background-color: #2c3e50;
         }
         tr:nth-child(even) { background-color: #fdfdfd; }
         tr:nth-child(odd) { background-color: #ffffff; }
-        tbody tr:hover { background-color: #eaf6ff; } /* Hover effect for rows */
+        tbody tr:hover { background-color: #eaf6ff; }
 
         /* Conditional Styling for Competed / Met Requirement */
-        .competed-yes { background-color: #d4edda; /* Lighter green */ }
-        .competed-no { background-color: #f8d7da; /* Lighter red */ }
-        .met-yes { font-weight: bold; color: #28a745; } /* Darker green */
-        .met-no { font-weight: bold; color: #dc3545; } /* Darker red */
-        .met-na { color: #6c757d; font-style: italic; } /* Grayed out */
+        .competed-yes { background-color: #d4edda; }
+        .competed-no { background-color: #f8d7da; }
+        .met-yes { font-weight: bold; color: #28a745; }
+        .met-no { font-weight: bold; color: #dc3545; }
+        .met-na { color: #6c757d; font-style: italic; }
 
         /* Sort Arrows */
         .sort-arrow {
@@ -70,6 +70,34 @@
             border-right: 5px solid transparent;
             border-top: 5px solid #ecf0f1;
         }
+
+        /* Filter Section Styling */
+        .filter-section {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-section label {
+            font-weight: bold;
+            color: #34495e;
+        }
+        .filter-section select { /* Styling for select dropdown */
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9em;
+            flex-grow: 1;
+            max-width: 300px;
+            background-color: white;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -77,14 +105,23 @@
     <p>This report helps compare swimmers who competed in a meet with parents who volunteered. <br>
        <strong>Rule:</strong> If a family had a swimmer competing in a meet, a parent should have volunteered for that meet.</p>
 
+    <div class="filter-section">
+        <label for="parentNameFilterSelect">Filter by Parent Name:</label>
+        <select id="parentNameFilterSelect">
+            <option value="">All Parents</option>
+        </select>
+    </div>
+
     <div id="report-container" class="loading-message">Loading report data...</div>
 
     <script>
-
         const PARENT_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
         const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json'; // IMPORTANT: CHECK REPO NAME HERE
 
-        let allReportRows = []; // Store the processed data globally for sorting
+        let allReportRows = []; // Store the processed data globally
+        let currentSortKey = "Meet Date"; // Default sort column
+        let currentSortDirection = "asc"; // Default sort direction
+        let currentFilterParentName = ""; // Stores the selected parent name from dropdown
 
         // Helper function to convert Dataclip JSON format to array of objects
         function parseDataclipJson(data) {
@@ -121,9 +158,14 @@
 
         function renderTableBody(dataRows) {
             const tbody = document.querySelector('#report-container tbody');
-            if (!tbody) return; // Ensure tbody exists
+            if (!tbody) return;
 
             tbody.innerHTML = ''; // Clear existing rows
+
+            if (dataRows.length === 0) {
+                tbody.insertAdjacentHTML('beforeend', `<tr><td colspan="9" style="text-align: center; color: #6c757d;">No results found for current filters.</td></tr>`);
+                return;
+            }
 
             dataRows.forEach(rowData => {
                 const competedClass = rowData["Competed YES/NO"] === "YES" ? "competed-yes" : "competed-no";
@@ -147,67 +189,116 @@
             });
         }
 
-        let currentSortKey = "Meet Date"; // Default sort column
-        let currentSortDirection = "asc"; // Default sort direction
+        function applyFiltersAndSort() {
+            let filteredRows = allReportRows;
 
-        function sortTable(key) {
-            // If clicking the same header, toggle direction
-            if (currentSortKey === key) {
-                currentSortDirection = (currentSortDirection === "asc") ? "desc" : "asc";
-            } else {
-                currentSortKey = key;
-                currentSortDirection = "asc"; // Default to asc for new column
+            // Apply filter if a parent name is selected (value is not empty)
+            if (currentFilterParentName && currentFilterParentName !== "") {
+                filteredRows = allReportRows.filter(row => {
+                    return row["Parent Name"] === currentFilterParentName;
+                });
             }
 
-            // Perform the sort
-            allReportRows.sort((a, b) => {
-                const valA = a[key];
-                const valB = b[key];
+            // Apply sort
+            filteredRows.sort((a, b) => {
+                const valA = a[currentSortKey];
+                const valB = b[currentSortKey];
 
                 let comparison = 0;
 
-                // Handle specific sorting logic for numbers, dates, and strings
-                if (key === "Meet Date") {
+                // Specific sorting logic based on column key
+                if (currentSortKey === "Meet Date") {
                     comparison = new Date(valA) - new Date(valB);
-                } else if (key === "Points") { // Assuming points are numbers
+                } else if (currentSortKey === "Points") {
                     comparison = (parseFloat(valA) || 0) - (parseFloat(valB) || 0); // Convert to number, default to 0 if N/A
-                } else if (key === "Competed YES/NO" || key === "Met Requirement") {
-                    // Custom sort order: YES, N/A, NO (or YES, NO, N/A)
-                    const order = {"YES": 1, "N/A (No Child Competed)": 2, "NO (Child Competed, Parent Not Volunteered)": 3, "N/A": 4};
-                    comparison = (order[valA] || 99) - (order[valB] || 99); // Use a high number for unknown states
+                } else if (currentSortKey === "Competed YES/NO" || currentSortKey === "Met Requirement") {
+                    // Custom sort order for these status columns
+                    const order = {
+                        "YES": 1,
+                        "N/A (No Child Competed)": 2,
+                        "NO (Child Competed, Parent Not Volunteered)": 3,
+                        "N/A": 4 // For parent volunteer rows without child competed (e.g. general 'N/A' for Swimmer Name)
+                    };
+                    comparison = (order[valA] || 99) - (order[valB] || 99); // Use a high number for unknown states to push them to end
                 } else {
-                    // Default string comparison for others
+                    // Default string comparison for other text columns
                     comparison = String(valA).localeCompare(String(valB));
                 }
 
-                return currentSortDirection === "asc" ? comparison : -comparison;
+                return currentSortDirection === "asc" ? comparison : -comparison; // Apply ascending or descending direction
             });
 
-            // Update sort arrows in headers
-            document.querySelectorAll('th[data-sort-key] .sort-arrow').forEach(arrow => arrow.classList.remove('asc', 'desc'));
-            const currentArrow = document.querySelector(`th[data-sort-key="${currentSortKey}"] .sort-arrow`);
-            if (currentArrow) {
-                currentArrow.classList.add(currentSortDirection);
-            }
-
-            renderTableBody(allReportRows); // Re-render the table with sorted data
+            renderTableBody(filteredRows); // Render the table with the filtered and sorted data
         }
 
         function initSorting() {
+            // Attach click listeners to all sortable table headers
             document.querySelectorAll('th[data-sort-key]').forEach(header => {
                 header.addEventListener('click', () => {
                     const key = header.getAttribute('data-sort-key');
-                    sortTable(key);
+                    // If the same header is clicked, toggle sort direction
+                    if (currentSortKey === key) {
+                        currentSortDirection = (currentSortDirection === "asc") ? "desc" : "asc";
+                    } else {
+                        // If a new header is clicked, set it as the new sort key and reset to ascending
+                        currentSortKey = key;
+                        currentSortDirection = "asc";
+                    }
+
+                    // Remove existing sort arrows from all headers
+                    document.querySelectorAll('th[data-sort-key] .sort-arrow').forEach(arrow => arrow.classList.remove('asc', 'desc'));
+                    // Add the correct arrow class to the currently sorted header
+                    const currentArrow = document.querySelector(`th[data-sort-key="${currentSortKey}"] .sort-arrow`);
+                    if (currentArrow) {
+                        currentArrow.classList.add(currentSortDirection);
+                    }
+
+                    applyFiltersAndSort(); // Re-apply filters and sort (will re-render the table)
                 });
-                // Add initial arrow span
-                header.insertAdjacentHTML('beforeend', '<span class="sort-arrow"></span>');
+                // Add the sort arrow span to each header if it doesn't exist
+                if (!header.querySelector('.sort-arrow')) {
+                    header.insertAdjacentHTML('beforeend', '<span class="sort-arrow"></span>');
+                }
+            });
+            // Initial sort applied in generateReport via applyFiltersAndSort
+        }
+
+        // Function to populate the dropdown with unique parent names
+        function populateParentFilterDropdown(parentVolunteersData) {
+            const selectElement = document.getElementById('parentNameFilterSelect');
+            const uniqueParents = new Set(); // Use a Set to automatically handle duplicates
+
+            // Iterate through the raw parent volunteer data to extract unique parent names
+            parentVolunteersData.forEach(row => {
+                // Ensure the 'Parent' field exists and is not our 'N/A' placeholder from non-volunteers
+                if (row.Parent && row.Parent !== "N/A (No Volunteer)") {
+                    uniqueParents.add(row.Parent);
+                }
             });
 
-            // Trigger initial sort on default key
-            sortTable(currentSortKey);
+            // Convert the Set to an Array and sort alphabetically
+            const sortedParents = Array.from(uniqueParents).sort();
+
+            // Add the default "All Parents" option first
+            selectElement.innerHTML = '<option value="">All Parents</option>';
+
+            // Add each unique parent name as an option in the dropdown
+            sortedParents.forEach(parentName => {
+                const option = document.createElement('option');
+                option.value = parentName;      // The value sent when selected
+                option.textContent = parentName; // The text displayed in the dropdown
+                selectElement.appendChild(option);
+            });
+
+            // Add event listener to the dropdown for when its value changes
+            selectElement.addEventListener('change', (event) => {
+                currentFilterParentName = event.target.value; // Update the filter variable
+                applyFiltersAndSort(); // Re-apply filters and sort to update the table
+            });
         }
 
 
+        // Main function to generate the report when the page loads
         async function generateReport() {
             const container = document.getElementById('report-container');
             container.innerHTML = '<p class="loading-message">Processing data...</p>';
@@ -216,24 +307,30 @@
             let parentVolunteers = [];
 
             try {
+                // Load and parse both JSON data sources
                 swimmersCompeting = await loadJsonData(SWIMMER_DATA_URL);
                 parentVolunteers = await loadJsonData(PARENT_DATA_URL);
             } catch (error) {
+                // Error handling is inside loadJsonData, so just return if an error occurred
                 return;
             }
 
+            // Check if both datasets are empty after loading
             if (!swimmersCompeting.length && !parentVolunteers.length) {
                 container.innerHTML = "<p>No data loaded to generate report.</p>";
                 return;
             }
 
-            const competedSwimmersByMeet = {};
+            // --- Step 1: Create a lookup for swimmers who competed in each meet ---
+            // This lookup helps determine the "Competed YES/NO" status efficiently
+            const competedSwimmersByMeet = {}; // Structure: {'Meet Name': {'YYYY-MM-DD': Set('Swimmer Name')}}
             swimmersCompeting.forEach(row => {
                 const meetName = row["Meet Name"];
                 const meetDate = row["Meet Date"];
                 const swimmerName = row["Swimmer Name"];
-                const countResults = row["Count of Events With Results"] || 0;
+                const countResults = row["Count of Events With Results"] || 0; // Default to 0 if null/undefined
 
+                // Only consider swimmers who actually had results for a meet
                 if (meetName && meetDate && swimmerName && countResults > 0) {
                     if (!(meetName in competedSwimmersByMeet)) {
                         competedSwimmersByMeet[meetName] = {};
@@ -245,9 +342,10 @@
                 }
             });
 
-            const tempReportRows = []; // Use a temp array before setting to allReportRows
-            const processedParentJobCombos = new Set();
-            const processedSwimmerMeetCombos = new Set();
+            // --- Step 2: Process Parent Volunteer Data to build initial report rows ---
+            const tempReportRows = []; // Temporary array to build all rows
+            const processedParentJobCombos = new Set(); // Tracks unique parent job assignments to avoid duplication
+            const processedSwimmerMeetCombos = new Set(); // Tracks which swimmers have been "covered" by a volunteering parent for a specific meet
 
             parentVolunteers.forEach(parentRow => {
                 const meetDate = parentRow["Meet Date"];
@@ -257,41 +355,48 @@
                 const shift = parentRow.Shift;
                 const points = parentRow.Points;
 
+                // Create a unique identifier for this specific parent's job/shift entry
+                // This helps avoid adding the same job assignment multiple times if data has duplicates
                 const parentJobId = `${meetDate}|${meetName}|${parentName}|${job}|${shift}|${points}`;
                 if (processedParentJobCombos.has(parentJobId)) {
-                    return;
+                    return; // Skip if this exact job assignment for this parent has already been processed
                 }
                 processedParentJobCombos.add(parentJobId);
 
+                // Collect all associated swimmers for this parent from the 'Swimmer X' columns
                 const associatedSwimmersList = [];
-                for (let i = 1; i <= 9; i++) {
-                    const swimmerCol = parentRow[`Swimmer ${i}`];
-                    if (swimmerCol) {
+                for (let i = 1; i <= 9; i++) { // Loop from Swimmer 1 to Swimmer 9
+                    const swimmerCol = parentRow[`Swimmer ${i}`]; // Access column using bracket notation due to space
+                    if (swimmerCol) { // If the column has a value (i.e., not null/empty)
                         associatedSwimmersList.push(swimmerCol);
                     }
                 }
 
-                let competedStatus = "NO";
+                let competedStatus = "NO"; // Default to NO
+                // Check if ANY of this parent's associated swimmers competed in THIS meet
                 for (const swimmer of associatedSwimmersList) {
                     if (meetName in competedSwimmersByMeet &&
-                       meetDate in competedSwimmersByMeet[meetName] &&
-                       competedSwimmersByMeet[meetName][meetDate].has(swimmer)) {
-                        competedStatus = "YES";
+                        meetDate in competedSwimmersByMeet[meetName] &&
+                        competedSwimmersByMeet[meetName][meetDate].has(swimmer)) {
+                        competedStatus = "YES"; // Set to YES if any child competed
+                        // Mark this specific swimmer-meet combination as having a parent volunteer
                         processedSwimmerMeetCombos.add(`${meetDate}|${meetName}|${swimmer}`);
                     }
                 }
 
+                // Determine the "Met Requirement" status based on the business rule
                 let metRequirement;
                 if (competedStatus === "YES") {
-                    metRequirement = "YES";
+                    metRequirement = "YES"; // Child competed AND parent volunteered for this meet
                 } else {
-                    metRequirement = "N/A (No Child Competed)";
+                    metRequirement = "N/A (No Child Competed)"; // Parent volunteered, but none of their children competed in this meet
                 }
 
+                // Add this row to our temporary report data
                 tempReportRows.push({
                     "Meet Date": meetDate,
                     "Meet Name": meetName,
-                    "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
+                    "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A", // Display all associated swimmers or N/A
                     "Competed YES/NO": competedStatus,
                     "Parent Name": parentName,
                     "Job": job,
@@ -301,53 +406,62 @@
                 });
             });
 
+            // --- Step 3: Identify and add swimmers who competed but whose parents did NOT volunteer ---
+            // These are the rows representing unmet requirements
             for (const meetName in competedSwimmersByMeet) {
                 for (const meetDate in competedSwimmersByMeet[meetName]) {
                     for (const swimmerName of competedSwimmersByMeet[meetName][meetDate]) {
+                        // If this swimmer-meet combination was NOT covered by a parent who volunteered
                         if (!processedSwimmerMeetCombos.has(`${meetDate}|${meetName}|${swimmerName}`)) {
                             tempReportRows.push({
                                 "Meet Date": meetDate,
                                 "Meet Name": meetName,
                                 "Swimmer Name": swimmerName,
-                                "Competed YES/NO": "YES",
-                                "Parent Name": "N/A (No Volunteer)",
+                                "Competed YES/NO": "YES", // Confirmed child competed
+                                "Parent Name": "N/A (No Volunteer)", // Explicitly state no parent volunteered for this meet
                                 "Job": "N/A",
                                 "Shift": "N/A",
                                 "Points": "N/A",
-                                "Met Requirement": "NO (Child Competed, Parent Not Volunteered)"
+                                "Met Requirement": "NO (Child Competed, Parent Not Volunteered)" // Clear failure status
                             });
                         }
                     }
                 }
             }
 
-            allReportRows = tempReportRows; // Assign to global variable after all processing
+            // Assign the fully processed rows to our global variable
+            allReportRows = tempReportRows;
 
-            // Initial table structure
+            // Insert the initial table structure into the DOM
             let initialTableHtml = `
                 <table>
                     <thead>
                         <tr>
-                            <th data-sort-key="Meet Date">Meet Date</th>
-                            <th data-sort-key="Meet Name">Meet Name</th>
-                            <th data-sort-key="Swimmer Name">Swimmer(s)</th>
-                            <th data-sort-key="Competed YES/NO">Competed?</th>
-                            <th data-sort-key="Parent Name">Parent Name</th>
-                            <th data-sort-key="Job">Job</th>
-                            <th data-sort-key="Shift">Shift</th>
-                            <th data-sort-key="Points">Points</th>
-                            <th data-sort-key="Met Requirement">Met Requirement</th>
+                            <th data-sort-key="Meet Date">Meet Date<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Meet Name">Meet Name<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Swimmer Name">Swimmer(s)<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Competed YES/NO">Competed?<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Parent Name">Parent Name<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Job">Job<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Shift">Shift<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Points">Points<span class="sort-arrow"></span></th>
+                            <th data-sort-key="Met Requirement">Met Requirement<span class="sort-arrow"></span></th>
                         </tr>
                     </thead>
                     <tbody>
                         </tbody>
                 </table>
             `;
-            container.innerHTML = initialTableHtml; // Insert the empty table structure
+            container.innerHTML = initialTableHtml;
 
-            initSorting(); // Initialize sorting after table structure is in DOM
+            // Initialize features: dropdown filter, sorting, and then apply initial filters/sorts
+            populateParentFilterDropdown(parentVolunteers); // Pass the loaded parent data to populate the filter dropdown
+            initSorting(); // Set up sorting event listeners
+
+            applyFiltersAndSort(); // This call will perform the initial rendering of the table based on default sort and no filter
         }
 
+        // Add event listener to run the report generation when the HTML document is fully loaded
         document.addEventListener('DOMContentLoaded', generateReport);
     </script>
 </body>
