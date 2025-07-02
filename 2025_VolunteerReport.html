@@ -347,8 +347,8 @@
                 } else if (currentSortKey === "Competed YES/NO" || currentSortKey === "Met Requirement") {
                     const order = {
                         "YES": 1,
-                        "N/A (No Child Competed)": 2,
-                        "NO (Child Competed, Parent Not Volunteered)": 3,
+                        "NoSwimmer": 2,
+                        "NO": 3,
                         "N/A": 4
                     };
                     comparison = (order[valA] || 99) - (order[valB] || 99);
