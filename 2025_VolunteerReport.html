@@ -29,9 +29,27 @@
     <div id="report-container" class="loading-message">Loading report data...</div>
 
     <script>
+        // --- IMPORTANT: These URLs are now pre-filled based on your previous input ---
+        const PARENT_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
+        const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
+        // --- END IMPORTANT ---
 
-        const PARENT_DATA_URL = ‘https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
-        const SWIMMER_DATA_URL = ‘https://raw.githubusercontent.com/MamaHubbs/Volunteers/refs/heads/main/2025_swimmerdata.json'; 
+        // Helper function to convert Dataclip JSON format to array of objects
+        function parseDataclipJson(data) {
+            if (!data || !Array.isArray(data.fields) || !Array.isArray(data.values)) {
+                console.warn("Provided data does not match expected Dataclip JSON format:", data);
+                return [];
+            }
+            const fields = data.fields;
+            const values = data.values;
+            return values.map(row => {
+                const obj = {};
+                fields.forEach((field, index) => {
+                    obj[field] = row[index];
+                });
+                return obj;
+            });
+        }
 
         async function loadJsonData(url) {
             try {
@@ -39,11 +57,12 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status} for ${url}`);
                 }
-                return await response.json();
+                const rawData = await response.json();
+                return parseDataclipJson(rawData); // Parse the Dataclip format
             } catch (error) {
-                console.error(`Error loading data from ${url}:`, error);
+                console.error(`Error loading or parsing data from ${url}:`, error);
                 const container = document.getElementById('report-container');
-                container.innerHTML = `<p class="error-message">Failed to load data from ${url}. Please check the URL and network connection. Error: ${error.message}</p>`;
+                container.innerHTML = `<p class="error-message">Failed to load data from ${url}. Please check the URL, network, or JSON format. Error: ${error.message}</p>`;
                 throw error; // Re-throw to stop further processing
             }
         }
@@ -52,18 +71,18 @@
             const container = document.getElementById('report-container');
             container.innerHTML = '<p class="loading-message">Processing data...</p>';
 
-            let swimmersCompetingRaw = [];
-            let parentVolunteersRaw = [];
+            let swimmersCompeting = []; // Renamed to reflect parsed data
+            let parentVolunteers = [];   // Renamed to reflect parsed data
 
             try {
-                swimmersCompetingRaw = await loadJsonData(SWIMMER_DATA_URL);
-                parentVolunteersRaw = await loadJsonData(PARENT_DATA_URL);
+                swimmersCompeting = await loadJsonData(SWIMMER_DATA_URL);
+                parentVolunteers = await loadJsonData(PARENT_DATA_URL);
             } catch (error) {
                 // Error already handled by loadJsonData, just return
                 return;
             }
 
-            if (!swimmersCompetingRaw.length && !parentVolunteersRaw.length) {
+            if (!swimmersCompeting.length && !parentVolunteers.length) {
                 container.innerHTML = "<p>No data loaded to generate report.</p>";
                 return;
             }
@@ -71,11 +90,11 @@
             // --- Step 1: Create a lookup for swimmers who competed in each meet ---
             // Structure: {'Meet Name': {'YYYY-MM-DD': Set('Swimmer Name')}}
             const competedSwimmersByMeet = {};
-            swimmersCompetingRaw.forEach(row => {
+            swimmersCompeting.forEach(row => { // Loop through the already parsed objects
                 const meetName = row["Meet Name"];
                 const meetDate = row["Meet Date"];
-                const swimmerName = row["Swimmer Name"]; // Use bracket notation for consistency with original SQL alias
-                const countResults = row["Count of Events With Results"] || 0; // Use 0 if not present
+                const swimmerName = row["Swimmer Name"];
+                const countResults = row["Count of Events With Results"] || 0;
 
                 if (meetName && meetDate && swimmerName && countResults > 0) {
                     if (!(meetName in competedSwimmersByMeet)) {
@@ -90,21 +109,20 @@
 
             // --- Step 2: Process Parent Volunteer Data ---
             const reportRows = [];
-            const processedParentJobCombos = new Set(); // To prevent duplicate parent job rows
-            const processedSwimmerMeetCombos = new Set(); // To track which swimmers have been covered by parent jobs
+            const processedParentJobCombos = new Set();
+            const processedSwimmerMeetCombos = new Set();
 
-            parentVolunteersRaw.forEach(parentRow => {
+            parentVolunteers.forEach(parentRow => { // Loop through the already parsed objects
                 const meetDate = parentRow["Meet Date"];
                 const meetName = parentRow["Meet Name"];
-                const parentName = parentRow.Parent;
+                const parentName = parentRow.Parent; // Access directly as property
                 const job = parentRow.Job;
                 const shift = parentRow.Shift;
                 const points = parentRow.Points;
 
-                // Create a unique identifier for this specific parent job/shift entry
                 const parentJobId = `${meetDate}|${meetName}|${parentName}|${job}|${shift}|${points}`;
                 if (processedParentJobCombos.has(parentJobId)) {
-                    return; // Skip if already processed (can happen if original SQL produced duplicates before GROUP BY)
+                    return;
                 }
                 processedParentJobCombos.add(parentJobId);
 
@@ -117,29 +135,26 @@
                 }
 
                 let competedStatus = "NO";
-                // Check if ANY associated swimmer competed in THIS meet
                 for (const swimmer of associatedSwimmersList) {
                     if (meetName in competedSwimmersByMeet &&
                        meetDate in competedSwimmersByMeet[meetName] &&
                        competedSwimmersByMeet[meetName][meetDate].has(swimmer)) {
                         competedStatus = "YES";
-                        // Mark swimmer as covered by a volunteering parent for this meet
                         processedSwimmerMeetCombos.add(`${meetDate}|${meetName}|${swimmer}`);
                     }
                 }
 
-                // Determine if requirement is met based on the rule
                 let metRequirement;
                 if (competedStatus === "YES") {
-                    metRequirement = "YES"; // Child competed AND parent volunteered for this meet
+                    metRequirement = "YES";
                 } else {
-                    metRequirement = "N/A (No Child Competed)"; // Parent volunteered, but no child competed in this meet
+                    metRequirement = "N/A (No Child Competed)";
                 }
 
                 reportRows.push({
                     "Meet Date": meetDate,
                     "Meet Name": meetName,
-                    "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A", // Display all associated swimmers for parent row
+                    "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
                     "Competed YES/NO": competedStatus,
                     "Parent Name": parentName,
                     "Job": job,
@@ -150,22 +165,20 @@
             });
 
             // --- Step 3: Add Swimmers who competed but whose parents did NOT volunteer for that specific meet ---
-            // These are the "missed requirements"
             for (const meetName in competedSwimmersByMeet) {
                 for (const meetDate in competedSwimmersByMeet[meetName]) {
                     for (const swimmerName of competedSwimmersByMeet[meetName][meetDate]) {
-                        // If this swimmer-meet combo was NOT covered by a parent who volunteered, add a row for them
                         if (!processedSwimmerMeetCombos.has(`${meetDate}|${meetName}|${swimmerName}`)) {
                             reportRows.push({
                                 "Meet Date": meetDate,
                                 "Meet Name": meetName,
                                 "Swimmer Name": swimmerName,
-                                "Competed YES/NO": "YES", // Confirmed child competed
-                                "Parent Name": "N/A (No Volunteer)", // No parent volunteered for this specific meet
+                                "Competed YES/NO": "YES",
+                                "Parent Name": "N/A (No Volunteer)",
                                 "Job": "N/A",
                                 "Shift": "N/A",
                                 "Points": "N/A",
-                                "Met Requirement": "NO (Child Competed, Parent Not Volunteered)" // Clear failure to meet requirement
+                                "Met Requirement": "NO (Child Competed, Parent Not Volunteered)"
                             });
                         }
                     }
@@ -178,12 +191,11 @@
                 if (comparison !== 0) return comparison;
                 comparison = a["Meet Name"].localeCompare(b["Meet Name"]);
                 if (comparison !== 0) return comparison;
-                // Custom sort to put "N/A (No Volunteer)" rows at the end of a group for a meet
-                const parentA = a["Parent Name"] === "N/A (No Volunteer)" ? "ZZZ" : a["Parent Name"]; // "ZZZ" sorts after most names
+                const parentA = a["Parent Name"] === "N/A (No Volunteer)" ? "ZZZ" : a["Parent Name"];
                 const parentB = b["Parent Name"] === "N/A (No Volunteer)" ? "ZZZ" : b["Parent Name"];
                 comparison = parentA.localeCompare(parentB);
                 if (comparison !== 0) return comparison;
-                return a["Swimmer Name"].localeCompare(b["Swimmer Name"]); // Final tie-breaker by swimmer name
+                return a["Swimmer Name"].localeCompare(b["Swimmer Name"]);
             });
 
             // --- Step 5: Generate and insert HTML Table ---
@@ -208,7 +220,7 @@
             reportRows.forEach(rowData => {
                 const competedClass = rowData["Competed YES/NO"] === "YES" ? "competed-yes" : "competed-no";
                 const metClass = rowData["Met Requirement"] === "YES" ? "met-yes" :
-                                 (rowData["Met Requirement"].startsWith("NO") ? "met-no" : "met-na"); // Check for "NO" at start
+                                 (rowData["Met Requirement"].startsWith("NO") ? "met-no" : "met-na");
 
                 tableHtml += `
                     <tr class="${competedClass}">
@@ -230,10 +242,9 @@
                 </table>
             `;
 
-            container.innerHTML = tableHtml; // Insert the generated table
+            container.innerHTML = tableHtml;
         }
 
-        // Run the report generation when the page loads
         document.addEventListener('DOMContentLoaded', generateReport);
     </script>
 </body>
