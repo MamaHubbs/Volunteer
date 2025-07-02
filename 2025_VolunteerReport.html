@@ -15,22 +15,30 @@
 
         /* NEW: Wrapper for fixed page width and centering */
         .main-content-wrapper {
-            width: 890px;
-            margin: 0 auto;
-            box-sizing: border-box;
-            padding: 10px;
+            width: 890px; /* Fixed width as requested */
+            margin: 0 auto; /* Centers the div horizontally */
+            box-sizing: border-box; /* Include padding/border in the width calculation */
+            padding: 10px; /* Added padding inside the wrapper */
+            /* Ensure text inside wrapper aligns properly, overridden by specific elements */
         }
 
         h1 {
-            text-align: center;
+            text-align: center; /* This will center the h1 itself */
             color: #0156B3;
             font-size: 2em;
             margin-bottom: 10px;
         }
 
+        /* Adjusting paragraph alignment for better centering within the wrapper */
+        p {
+            text-align: center; /* Center the descriptive text */
+            color: #555;
+            line-height: 1.5;
+        }
+
         /* Filter/Dropdown Section - Renamed classes to match provided CSS */
         .dropdown-container {
-            text-align: center;
+            text-align: center; /* This centers its inline-block children (dropdown-box) */
             margin-bottom: 8px;
             font-size: 0.7em;
             position: sticky;
@@ -39,6 +47,8 @@
             padding: 10px 0;
             z-index: 1000;
             border-bottom: 1px solid #ccc;
+            /* If this container itself needs to be centered, and it's not 100% width of its parent */
+            /* width: fit-content; margin: 0 auto; */ /* Uncomment if needed, but flex/inline-block should keep it centered */
         }
 
         .dropdown-box {
@@ -71,15 +81,17 @@
 
         /* Summary Stats Section */
         .summary-stats-section {
-            background-color: #e5f1ff; /* Light blue background */
-            border: 1px solid #cce5ff; /* Lighter border */
+            background-color: #e5f1ff;
+            border: 1px solid #cce5ff;
             padding: 10px 15px;
             margin-bottom: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            text-align: center;
+            text-align: center; /* Centers text within the summary box */
             font-size: 0.9em;
             color: #0156B3;
+            /* If this container itself needs to be centered, and it's not 100% width of its parent */
+            /* max-width: 80%; margin: 0 auto; */ /* Uncomment if needed, adjust max-width */
         }
         .summary-stats-section h2 {
             font-size: 1.2em;
@@ -98,16 +110,18 @@
 
         /* Table Styling */
         table {
-            width: 100%;
+            width: 100%; /* Will fill the 890px wrapper */
             border-collapse: collapse;
             font-size: 0.68em;
             margin-top: 10px;
+            /* Tables are block elements; if they don't auto-center when width is less than 100%,
+               you'd add margin: 0 auto; here. But since it's 100%, it will fill. */
         }
 
         th, td {
             padding: 6px 10px;
             border: 1px solid #ccc;
-            text-align: left;
+            text-align: left; /* Default text alignment within table cells */
             vertical-align: top;
         }
 
@@ -120,7 +134,7 @@
             white-space: nowrap;
         }
         
-        /* Sort Arrows - Using the th.sortable::after pseudo-element */
+        /* Sort Arrows */
         th.sortable::after {
             content: ' \21C5';
             font-size: 0.68em;
@@ -136,20 +150,19 @@
             color: #0156B3;
         }
 
-        /* Alternating row colors from user's CSS */
+        /* Alternating row colors */
         tbody tr:nth-child(even) { background-color: #fdfdfd; }
         tbody tr:nth-child(odd) { background-color: #ffffff; }
-        
         tbody tr:hover { background-color: #eaf6ff; }
 
-        /* Error Message - Renamed class to match user's CSS */
+        /* Error Message */
         .error {
             color: red;
             text-align: center;
             margin-top: 20px;
         }
 
-        /* Column Widths - Adjusted to fit 9 columns and content better, while keeping user's style intent */
+        /* Column Widths - Adjusted for 9 columns and content */
         th:nth-child(1), td:nth-child(1) { max-width: 90px; width: 9%; }
         th:nth-child(2), td:nth-child(2) { max-width: 160px; width: 18%; }
         th:nth-child(3), td:nth-child(3) { max-width: 140px; width: 15%; }
@@ -160,21 +173,21 @@
         th:nth-child(8), td:nth-child(8) { max-width: 40px; width: 5%; text-align: center; }
         th:nth-child(9), td:nth-child(9) { max-width: 110px; width: 12%; }
 
-        /* Cell content overflow from user's CSS */
+        /* Cell content overflow */
         td {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        /* Conditional Styling for Competed / Met Requirement - Keeping these specific colors */
+        /* Conditional Styling for Competed / Met Requirement */
         .competed-yes { background-color: #d4edda; }
         .competed-no { background-color: #f8d7da; }
         .met-yes { font-weight: bold; color: #28a745; }
         .met-no { font-weight: bold; color: #dc3545; }
         .met-na { color: #6c757d; font-style: italic; }
 
-        /* Loading message - Adjusted from error-message to a more general class name */
+        /* Loading message */
         .loading-message { color: #3498db; font-style: italic; text-align: center; padding: 20px; }
     </style>
 </head>
@@ -294,8 +307,7 @@
                 const filterParentNames = currentFilterParentName.split('; ').map(name => name.trim());
 
                 filteredRows = filteredRows.filter(row => {
-                    const rowParents = row._allParentNamesForFilter || []; // Use the new internal property
-                    // Check if any of the filterParentNames are included in the row's _allParentNamesForFilter
+                    const rowParents = row._allParentNamesForFilter || [];
                     return filterParentNames.some(filterName => rowParents.includes(filterName));
                 });
             }
@@ -340,44 +352,37 @@
                 return currentSortDirection === "asc" ? comparison : -comparison;
             });
 
-            renderTableBody(filteredRows); // Render the table with the filtered and sorted data
-            updateSummaryDisplay(filteredRows); // Update summary stats for the current view
+            renderTableBody(filteredRows);
+            updateSummaryDisplay(filteredRows);
         }
 
-        // Function to calculate and update the summary statistics display
         function updateSummaryDisplay(displayedRows) {
-            const totalMeetsSwumSet = new Set(); // To count distinct meets where a child swam
-            const totalMeetsVolunteeredSet = new Set(); // To count distinct meets where a parent volunteered
+            const totalMeetsSwumSet = new Set();
+            const totalMeetsVolunteeredSet = new Set();
 
-            // Iterate over the rows currently displayed in the table
             displayedRows.forEach(row => {
                 const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
 
                 if (row["Competed YES/NO"] === "YES") {
-                    // All swimmers from the Swimmer Name column
                     const swimmersInRow = row["Swimmer Name"].split(', ').map(name => name.trim());
                     swimmersInRow.forEach(swimmer => {
-                         // Only count distinct meet-swimmer combos for "swum"
-                        totalMeetsSwumSet.add(`${meetKey}|${swimmer}`);
+                         totalMeetsSwumSet.add(`${meetKey}|${swimmer}`);
                     });
                 }
                 
-                if (row.Job && row.Job !== "N/A") { // Check if it's a volunteering row
-                    // Only count distinct meet-parent combos for "volunteered"
-                    const parentNamesInRow = row["Parent Name"].split('; ').map(name => name.trim());
+                if (row.Job && row.Job !== "N/A") {
+                    const parentNamesInRow = row._allParentNamesForFilter || [];
                     parentNamesInRow.forEach(parent => {
-                        if (parent !== "N/A (No Volunteer)") { // Don't count "N/A" as a volunteering parent
+                        if (parent && parent !== "N/A (No Volunteer)") {
                              totalMeetsVolunteeredSet.add(`${meetKey}|${parent}`);
                         }
                     });
                 }
             });
 
-            // Update the HTML elements
             document.getElementById('total-meets-swum').textContent = totalMeetsSwumSet.size;
             document.getElementById('total-meets-volunteered').textContent = totalMeetsVolunteeredSet.size;
             
-            // Update the summary context label
             const summaryContextLabel = document.getElementById('summary-context-label');
             if (currentFilterParentName && currentFilterParentName !== "") {
                 summaryContextLabel.textContent = `Parent: ${currentFilterParentName}`;
@@ -468,7 +473,7 @@
                 return;
             }
 
-            const competedSwimmersByMeet = {}; // Stores {meetName: {meetDate: {swimmerName: "Associated Parents String"}}}
+            const competedSwimmersByMeet = {};
             swimmersCompeting.forEach(row => {
                 const meetName = row["Meet Name"];
                 const meetDate = row["Meet Date"];
@@ -496,7 +501,7 @@
                 const meetName = parentRow["Meet Name"];
                 const parentName = parentRow.Parent;
                 const job = parentRow.Job;
-                const shift = parentRow.Shift;
+                const shift = parentRow.Shift; // Corrected: This was 'Yes' in a previous paste, should be 'Shift'
                 const points = parentRow.Points;
 
                 const parentJobId = `${meetDate}|${meetName}|${parentName}|${job}|${shift}|${points}`;
@@ -595,7 +600,7 @@
             initMetRequirementFilter();
             initSorting();
 
-            applyFiltersAndSort(); // This will also trigger the initial summary update
+            applyFiltersAndSort();
         }
 
         document.addEventListener('DOMContentLoaded', generateReport);
