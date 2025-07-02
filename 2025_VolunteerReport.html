@@ -80,11 +80,11 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             display: flex;
-            gap: 15px; /* Increased gap */
+            gap: 15px;
             align-items: center;
             flex-wrap: wrap;
         }
-        .filter-section div.filter-group { /* Group labels and selects */
+        .filter-section div.filter-group {
             display: flex;
             align-items: center;
             gap: 5px;
@@ -99,7 +99,7 @@
             border-radius: 4px;
             font-size: 0.9em;
             flex-grow: 1;
-            max-width: 300px; /* Max width for consistency */
+            max-width: 300px;
             background-color: white;
             cursor: pointer;
         }
@@ -136,11 +136,11 @@
         const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
         // --- END IMPORTANT ---
 
-        let allReportRows = []; // Store the processed data globally
-        let currentSortKey = "Meet Date"; // Default sort column
-        let currentSortDirection = "asc"; // Default sort direction
-        let currentFilterParentName = ""; // Stores selected parent name
-        let currentFilterMetRequirement = ""; // Stores selected met requirement status
+        let allReportRows = [];
+        let currentSortKey = "Meet Date";
+        let currentSortDirection = "asc";
+        let currentFilterParentName = "";
+        let currentFilterMetRequirement = "";
 
         // Helper function to convert Dataclip JSON format to array of objects
         function parseDataclipJson(data) {
@@ -179,7 +179,7 @@
             const tbody = document.querySelector('#report-container tbody');
             if (!tbody) return;
 
-            tbody.innerHTML = ''; // Clear existing rows
+            tbody.innerHTML = '';
 
             if (dataRows.length === 0) {
                 tbody.insertAdjacentHTML('beforeend', `<tr><td colspan="9" style="text-align: center; color: #6c757d;">No results found for current filters.</td></tr>`);
@@ -213,8 +213,14 @@
 
             // Apply Parent Name filter
             if (currentFilterParentName && currentFilterParentName !== "") {
+                const filterParentNames = currentFilterParentName.split('; ').map(name => name.trim()); // Handle multiple parents
+
                 filteredRows = filteredRows.filter(row => {
-                    return row["Parent Name"] === currentFilterParentName;
+                    // Check parent name for volunteer rows, or associated parents for non-volunteer rows
+                    const parentNamesToSearch = row._allParentNamesForFilter || []; // Use the new internal property
+
+                    // Check if any of the filterParentNames is included in the row's parent names
+                    return filterParentNames.some(filterName => parentNamesToSearch.includes(filterName));
                 });
             }
 
@@ -228,7 +234,7 @@
                     } else if (currentFilterMetRequirement === "N/A") {
                         return row["Met Requirement"].startsWith("N/A");
                     }
-                    return false; // Should not happen
+                    return false;
                 });
             }
 
@@ -286,13 +292,22 @@
             });
         }
 
-        function populateParentFilterDropdown(parentVolunteersData) {
+        function populateParentFilterDropdown(parentVolunteersData, swimmersCompetingData) {
             const selectElement = document.getElementById('parentNameFilterSelect');
             const uniqueParents = new Set();
 
+            // Add parents from volunteer data
             parentVolunteersData.forEach(row => {
                 if (row.Parent && row.Parent !== "N/A (No Volunteer)") {
                     uniqueParents.add(row.Parent);
+                }
+            });
+
+            // Add parents associated with competing swimmers (from new column)
+            swimmersCompetingData.forEach(row => {
+                const parentsString = row["Associated Parents For Swimmer"];
+                if (parentsString && parentsString !== "No Parent Linked (for Swimmer)") {
+                    parentsString.split('; ').forEach(parent => uniqueParents.add(parent.trim()));
                 }
             });
 
@@ -321,7 +336,6 @@
             });
         }
 
-
         async function generateReport() {
             const container = document.getElementById('report-container');
             container.innerHTML = '<p class="loading-message">Processing data...</p>';
@@ -341,27 +355,28 @@
                 return;
             }
 
-            const competedSwimmersByMeet = {};
+            const competedSwimmersByMeet = {}; // Stores {meetName: {meetDate: {swimmerName: "Associated Parents String"}}}
             swimmersCompeting.forEach(row => {
                 const meetName = row["Meet Name"];
                 const meetDate = row["Meet Date"];
                 const swimmerName = row["Swimmer Name"];
                 const countResults = row["Count of Events With Results"] || 0;
+                const associatedParents = row["Associated Parents For Swimmer"]; // Get new parents string
 
                 if (meetName && meetDate && swimmerName && countResults > 0) {
                     if (!(meetName in competedSwimmersByMeet)) {
                         competedSwimmersByMeet[meetName] = {};
                     }
                     if (!(meetDate in competedSwimmersByMeet[meetName])) {
-                        competedSwimmersByMeet[meetName][meetDate] = new Set();
+                        competedSwimmersByMeet[meetName][meetDate] = {}; // Now an object to store parent string
                     }
-                    competedSwimmersByMeet[meetName][meetDate].add(swimmerName);
+                    competedSwimmersByMeet[meetName][meetDate][swimmerName] = associatedParents; // Store parents for this swimmer
                 }
             });
 
             const tempReportRows = [];
             const processedParentJobCombos = new Set();
-            const processedSwimmerMeetCombos = new Set();
+            const processedSwimmerMeetCombos = new Set(); // Stores 'date|name|swimmer' combos that had a parent volunteer
 
             parentVolunteers.forEach(parentRow => {
                 const meetDate = parentRow["Meet Date"];
@@ -389,7 +404,7 @@
                 for (const swimmer of associatedSwimmersList) {
                     if (meetName in competedSwimmersByMeet &&
                        meetDate in competedSwimmersByMeet[meetName] &&
-                       competedSwimmersByMeet[meetName][meetDate].has(swimmer)) {
+                       swimmer in competedSwimmersByMeet[meetName][meetDate]) { // Check if swimmer exists in lookup
                         competedStatus = "YES";
                         processedSwimmerMeetCombos.add(`${meetDate}|${meetName}|${swimmer}`);
                     }
@@ -402,7 +417,7 @@
                     metRequirement = "N/A (No Child Competed)";
                 }
 
-                tempReportRows.push({
+                const row = {
                     "Meet Date": meetDate,
                     "Meet Name": meetName,
                     "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
@@ -411,25 +426,30 @@
                     "Job": job,
                     "Shift": shift,
                     "Points": points,
-                    "Met Requirement": metRequirement
-                });
+                    "Met Requirement": metRequirement,
+                    "_allParentNamesForFilter": parentName.split('; ').map(name => name.trim()).filter(name => name !== "N/A (No Volunteer)") // Store for filtering
+                };
+                tempReportRows.push(row);
             });
 
             for (const meetName in competedSwimmersByMeet) {
                 for (const meetDate in competedSwimmersByMeet[meetName]) {
-                    for (const swimmerName of competedSwimmersByMeet[meetName][meetDate]) {
+                    for (const swimmerName in competedSwimmersByMeet[meetName][meetDate]) { // Iterate through swimmer names as keys
+                        const swimmerParents = competedSwimmersByMeet[meetName][meetDate][swimmerName]; // Get parents for this swimmer
                         if (!processedSwimmerMeetCombos.has(`${meetDate}|${meetName}|${swimmerName}`)) {
-                            tempReportRows.push({
+                            const row = {
                                 "Meet Date": meetDate,
                                 "Meet Name": meetName,
                                 "Swimmer Name": swimmerName,
                                 "Competed YES/NO": "YES",
-                                "Parent Name": "N/A (No Volunteer)",
+                                "Parent Name": swimmerParents, // Now shows the actual associated parent(s)
                                 "Job": "N/A",
                                 "Shift": "N/A",
                                 "Points": "N/A",
-                                "Met Requirement": "NO (Child Competed, Parent Not Volunteered)"
-                            });
+                                "Met Requirement": "NO (Child Competed, Parent Not Volunteered)",
+                                "_allParentNamesForFilter": swimmerParents.split('; ').map(name => name.trim()).filter(name => name !== "No Parent Linked (for Swimmer)") // Store for filtering
+                            };
+                            tempReportRows.push(row);
                         }
                     }
                 }
@@ -458,11 +478,11 @@
             `;
             container.innerHTML = initialTableHtml;
 
-            populateParentFilterDropdown(parentVolunteers); // Populate parent dropdown
-            initMetRequirementFilter(); // Initialize met requirement filter
-            initSorting(); // Initialize sorting
+            populateParentFilterDropdown(parentVolunteers, swimmersCompeting); // Pass both datasets
+            initMetRequirementFilter();
+            initSorting();
 
-            applyFiltersAndSort(); // Apply initial sort and render (default filters are 'All')
+            applyFiltersAndSort();
         }
 
         document.addEventListener('DOMContentLoaded', generateReport);
