@@ -15,10 +15,10 @@
 
         /* NEW: Wrapper for fixed page width and centering */
         .main-content-wrapper {
-            width: 890px; /* Fixed width as requested */
-            margin: 0 auto; /* Centers the div horizontally */
-            box-sizing: border-box; /* Include padding/border in the width calculation */
-            padding: 10px; /* Optional: Add a little padding inside the wrapper */
+            width: 890px;
+            margin: 0 auto;
+            box-sizing: border-box;
+            padding: 10px;
         }
 
         h1 {
@@ -69,9 +69,36 @@
             cursor: pointer;
         }
 
+        /* Summary Stats Section */
+        .summary-stats-section {
+            background-color: #e5f1ff; /* Light blue background */
+            border: 1px solid #cce5ff; /* Lighter border */
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+            font-size: 0.9em;
+            color: #0156B3;
+        }
+        .summary-stats-section h2 {
+            font-size: 1.2em;
+            margin-top: 0;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        .summary-stats-section p {
+            margin: 5px 0;
+            color: #34495e;
+            font-weight: bold;
+        }
+        .summary-stats-section span {
+            color: #0156B3;
+        }
+
         /* Table Styling */
         table {
-            width: 100%; /* Will now be 100% of the 890px wrapper */
+            width: 100%;
             border-collapse: collapse;
             font-size: 0.68em;
             margin-top: 10px;
@@ -175,6 +202,12 @@
             </div>
         </div>
 
+        <div class="summary-stats-section">
+            <h2>Summary for <span id="summary-context-label">All Parents</span></h2>
+            <p>Meets Swum by Associated Children: <span id="total-meets-swum">0</span></p>
+            <p>Meets Volunteered: <span id="total-meets-volunteered">0</span></p>
+        </div>
+
         <div id="report-container" class="loading-message">Loading report data...</div>
     </div> <script>
         // --- IMPORTANT: These URLs are pre-filled based on your previous input ---
@@ -261,7 +294,8 @@
                 const filterParentNames = currentFilterParentName.split('; ').map(name => name.trim());
 
                 filteredRows = filteredRows.filter(row => {
-                    const rowParents = row._allParentNamesForFilter || [];
+                    const rowParents = row._allParentNamesForFilter || []; // Use the new internal property
+                    // Check if any of the filterParentNames are included in the row's _allParentNamesForFilter
                     return filterParentNames.some(filterName => rowParents.includes(filterName));
                 });
             }
@@ -306,12 +340,54 @@
                 return currentSortDirection === "asc" ? comparison : -comparison;
             });
 
-            renderTableBody(filteredRows);
+            renderTableBody(filteredRows); // Render the table with the filtered and sorted data
+            updateSummaryDisplay(filteredRows); // Update summary stats for the current view
+        }
+
+        // Function to calculate and update the summary statistics display
+        function updateSummaryDisplay(displayedRows) {
+            const totalMeetsSwumSet = new Set(); // To count distinct meets where a child swam
+            const totalMeetsVolunteeredSet = new Set(); // To count distinct meets where a parent volunteered
+
+            // Iterate over the rows currently displayed in the table
+            displayedRows.forEach(row => {
+                const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
+
+                if (row["Competed YES/NO"] === "YES") {
+                    // All swimmers from the Swimmer Name column
+                    const swimmersInRow = row["Swimmer Name"].split(', ').map(name => name.trim());
+                    swimmersInRow.forEach(swimmer => {
+                         // Only count distinct meet-swimmer combos for "swum"
+                        totalMeetsSwumSet.add(`${meetKey}|${swimmer}`);
+                    });
+                }
+                
+                if (row.Job && row.Job !== "N/A") { // Check if it's a volunteering row
+                    // Only count distinct meet-parent combos for "volunteered"
+                    const parentNamesInRow = row["Parent Name"].split('; ').map(name => name.trim());
+                    parentNamesInRow.forEach(parent => {
+                        if (parent !== "N/A (No Volunteer)") { // Don't count "N/A" as a volunteering parent
+                             totalMeetsVolunteeredSet.add(`${meetKey}|${parent}`);
+                        }
+                    });
+                }
+            });
+
+            // Update the HTML elements
+            document.getElementById('total-meets-swum').textContent = totalMeetsSwumSet.size;
+            document.getElementById('total-meets-volunteered').textContent = totalMeetsVolunteeredSet.size;
+            
+            // Update the summary context label
+            const summaryContextLabel = document.getElementById('summary-context-label');
+            if (currentFilterParentName && currentFilterParentName !== "") {
+                summaryContextLabel.textContent = `Parent: ${currentFilterParentName}`;
+            } else {
+                summaryContextLabel.textContent = `All Parents`;
+            }
         }
 
         function initSorting() {
             document.querySelectorAll('th[data-sort-key]').forEach(header => {
-                // Add the 'sortable' class to headers that can be sorted
                 header.classList.add('sortable');
 
                 header.addEventListener('click', () => {
@@ -323,31 +399,24 @@
                         currentSortDirection = "asc";
                     }
 
-                    // Remove existing sort direction classes from all headers
                     document.querySelectorAll('th[data-sort-key]').forEach(th => th.classList.remove('asc', 'desc'));
-                    // Add the correct sort direction class to the currently sorted header
                     header.classList.add(currentSortDirection);
 
                     applyFiltersAndSort();
                 });
-                // The sort arrow is handled by CSS ::after pseudo-element based on .sortable, .asc, .desc classes
-                // No need to insert a <span> anymore.
             });
-            // Initial sort applied in generateReport via applyFiltersAndSort
         }
 
         function populateParentFilterDropdown(parentVolunteersData, swimmersCompetingData) {
             const selectElement = document.getElementById('parentNameFilterSelect');
             const uniqueParents = new Set();
 
-            // Add parents from volunteer data
             parentVolunteersData.forEach(row => {
                 if (row.Parent && row.Parent !== "N/A (No Volunteer)") {
                     uniqueParents.add(row.Parent);
                 }
             });
 
-            // Add parents associated with competing swimmers (from new column in swimmerData)
             swimmersCompetingData.forEach(row => {
                 const parentsString = row["Associated Parents For Swimmer"];
                 if (parentsString && parentsString !== "No Parent Linked (for Swimmer)") {
@@ -420,7 +489,7 @@
 
             const tempReportRows = [];
             const processedParentJobCombos = new Set();
-            const processedSwimmerMeetCombos = new Set(); // Stores 'date|name|swimmer' combos that had a parent volunteer
+            const processedSwimmerMeetCombos = new Set();
 
             parentVolunteers.forEach(parentRow => {
                 const meetDate = parentRow["Meet Date"];
@@ -471,7 +540,6 @@
                     "Shift": shift,
                     "Points": points,
                     "Met Requirement": metRequirement,
-                    // Store the volunteer parent's name for filtering
                     _allParentNamesForFilter: [parentName].filter(name => name !== "N/A (No Volunteer)")
                 };
                 tempReportRows.push(row);
@@ -487,12 +555,11 @@
                                 "Meet Name": meetName,
                                 "Swimmer Name": swimmerName,
                                 "Competed YES/NO": "YES",
-                                "Parent Name": swimmerParents, // Display associated parents
+                                "Parent Name": swimmerParents,
                                 "Job": "N/A",
                                 "Shift": "N/A",
                                 "Points": "N/A",
                                 "Met Requirement": "NO (Child Competed, Parent Not Volunteered)",
-                                // Store the associated swimmer parents for filtering
                                 _allParentNamesForFilter: swimmerParents.split('; ').map(name => name.trim()).filter(name => name !== "No Parent Linked (for Swimmer)")
                             };
                             tempReportRows.push(row);
@@ -528,7 +595,7 @@
             initMetRequirementFilter();
             initSorting();
 
-            applyFiltersAndSort();
+            applyFiltersAndSort(); // This will also trigger the initial summary update
         }
 
         document.addEventListener('DOMContentLoaded', generateReport);
