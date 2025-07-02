@@ -29,13 +29,9 @@
     <div id="report-container" class="loading-message">Loading report data...</div>
 
     <script>
-        // --- IMPORTANT: REPLACE THESE WITH YOUR ACTUAL RAW GITHUB JSON URLs ---
-        // Get these URLs by uploading your JSON files to GitHub, clicking on the file,
-        // then clicking the "Raw" button and copying the URL from your browser's address bar.
-        const SWIMMER_DATA_URL = 'YOUR_RAW_URL_FOR_2025_swimmerdata.json_HERE';
-        const PARENT_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json;
-        // Example: 'https://raw.githubusercontent.com/yourusername/yourrepo/main/2025_swimmerdata.json'
-        // --- END IMPORTANT ---
+
+        const PARENT_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
+        const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json;
 
         async function loadJsonData(url) {
             try {
