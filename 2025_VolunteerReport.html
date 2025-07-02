@@ -17,10 +17,15 @@
         .main-content-wrapper {
             width: 890px; /* Fixed width as requested */
             margin: 0 auto; /* Centers the div horizontally */
+            overflow-x: auto;
             box-sizing: border-box; /* Include padding/border in the width calculation */
             padding: 10px; /* Added padding inside the wrapper */
             /* Ensure text inside wrapper aligns properly, overridden by specific elements */
         }
+
+        * {
+    box-sizing: border-box;
+}
 
         h1 {
             text-align: center; /* This will center the h1 itself */
@@ -110,6 +115,7 @@
 
         /* Table Styling */
         table {
+            table-layout: fixed;
             width: 100%; /* Will fill the 890px wrapper */
             max-width: 890px;
             border-collapse: collapse;
