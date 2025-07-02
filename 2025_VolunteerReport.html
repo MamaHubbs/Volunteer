@@ -13,6 +13,14 @@
             color: #333;
         }
 
+        /* NEW: Wrapper for fixed page width and centering */
+        .main-content-wrapper {
+            width: 890px; /* Fixed width as requested */
+            margin: 0 auto; /* Centers the div horizontally */
+            box-sizing: border-box; /* Include padding/border in the width calculation */
+            padding: 10px; /* Optional: Add a little padding inside the wrapper */
+        }
+
         h1 {
             text-align: center;
             color: #0156B3;
@@ -25,11 +33,11 @@
             text-align: center;
             margin-bottom: 8px;
             font-size: 0.7em;
-            position: sticky; /* Makes it stick at the top */
+            position: sticky;
             top: 0;
             background-color: #f8f8f8;
             padding: 10px 0;
-            z-index: 1000; /* Ensures it stays above the table header when scrolling */
+            z-index: 1000;
             border-bottom: 1px solid #ccc;
         }
 
@@ -48,7 +56,7 @@
             padding: 3px 6px;
             font-size: 0.7em;
             border-radius: 4px;
-            border: 1px solid #ccc; /* Added border that was missing in user's provided CSS for select/input */
+            border: 1px solid #ccc;
         }
 
         button {
@@ -63,11 +71,10 @@
 
         /* Table Styling */
         table {
-            width: 100%;
+            width: 100%; /* Will now be 100% of the 890px wrapper */
             border-collapse: collapse;
             font-size: 0.68em;
             margin-top: 10px;
-            /* Removed box-shadow, border-radius as they were not in the new base style */
         }
 
         th, td {
@@ -80,40 +87,33 @@
         th {
             background-color: #e5f1ff;
             position: sticky;
-            top: 50px; /* Stays below the sticky dropdown-container */
-            z-index: 1; /* Stays above table body */
+            top: 50px;
+            z-index: 1;
             cursor: pointer;
-            white-space: nowrap; /* Prevent header text from wrapping */
+            white-space: nowrap;
         }
         
         /* Sort Arrows - Using the th.sortable::after pseudo-element */
         th.sortable::after {
-            content: ' \21C5'; /* Default up-down arrow */
+            content: ' \21C5';
             font-size: 0.68em;
             color: #666;
-            margin-left: 5px; /* Added spacing */
+            margin-left: 5px;
         }
-        th.sortable.asc::after { /* Specific arrow for ascending sort */
-            content: ' \25B2'; /* Up-pointing triangle */
-            color: #0156B3; /* Highlight color */
+        th.sortable.asc::after {
+            content: ' \25B2';
+            color: #0156B3;
         }
-        th.sortable.desc::after { /* Specific arrow for descending sort */
-            content: ' \25BC'; /* Down-pointing triangle */
-            color: #0156B3; /* Highlight color */
+        th.sortable.desc::after {
+            content: ' \25BC';
+            color: #0156B3;
         }
 
         /* Alternating row colors from user's CSS */
-        .row-group-even { /* Note: These classes are not dynamically added by current JS */
-            background-color: #ffffff;
-        }
-        .row-group-odd { /* Note: These classes are not dynamically added by current JS */
-            background-color: #f0f0f0;
-        }
-        /* Keeping basic nth-child for now */
-        tbody tr:nth-child(even) { background-color: #fdfdfd; } /* Slightly different from row-group-even */
-        tbody tr:nth-child(odd) { background-color: #ffffff; } /* Slightly different from row-group-odd */
+        tbody tr:nth-child(even) { background-color: #fdfdfd; }
+        tbody tr:nth-child(odd) { background-color: #ffffff; }
         
-        tbody tr:hover { background-color: #eaf6ff; } /* Keeping hover from previous version */
+        tbody tr:hover { background-color: #eaf6ff; }
 
         /* Error Message - Renamed class to match user's CSS */
         .error {
@@ -123,15 +123,15 @@
         }
 
         /* Column Widths - Adjusted to fit 9 columns and content better, while keeping user's style intent */
-        th:nth-child(1), td:nth-child(1) { max-width: 90px; width: 6%; }   /* Meet Date */
-        th:nth-child(2), td:nth-child(2) { max-width: 160px; width: 13%; } /* Meet Name */
-        th:nth-child(3), td:nth-child(3) { max-width: 140px; width: 21%; } /* Swimmer(s) */
-        th:nth-child(4), td:nth-child(4) { max-width: 60px; width: 5%; text-align: center; } /* Competed? */
-        th:nth-child(5), td:nth-child(5) { max-width: 140px; width: 12%; } /* Parent Name */
-        th:nth-child(6), td:nth-child(6) { max-width: 80px; width: 8%; }   /* Job */
-        th:nth-child(7), td:nth-child(7) { max-width: 100px; width: 18%; } /* Shift */
-        th:nth-child(8), td:nth-child(8) { max-width: 40px; width: 5%; text-align: center; } /* Points */
-        th:nth-child(9), td:nth-child(9) { max-width: 110px; width: 12%; } /* Met Requirement */
+        th:nth-child(1), td:nth-child(1) { max-width: 90px; width: 9%; }
+        th:nth-child(2), td:nth-child(2) { max-width: 160px; width: 18%; }
+        th:nth-child(3), td:nth-child(3) { max-width: 140px; width: 15%; }
+        th:nth-child(4), td:nth-child(4) { max-width: 60px; width: 7%; text-align: center; }
+        th:nth-child(5), td:nth-child(5) { max-width: 140px; width: 15%; }
+        th:nth-child(6), td:nth-child(6) { max-width: 80px; width: 8%; }
+        th:nth-child(7), td:nth-child(7) { max-width: 100px; width: 11%; }
+        th:nth-child(8), td:nth-child(8) { max-width: 40px; width: 5%; text-align: center; }
+        th:nth-child(9), td:nth-child(9) { max-width: 110px; width: 12%; }
 
         /* Cell content overflow from user's CSS */
         td {
@@ -152,31 +152,31 @@
     </style>
 </head>
 <body>
-    <h1>Volunteer Requirement Report</h1>
-    <p>This report helps compare swimmers who competed in a meet with parents who volunteered. <br>
-       <strong>Rule:</strong> If a family had a swimmer competing in a meet, a parent should have volunteered for that meet.</p>
+    <div class="main-content-wrapper">
+        <h1>Volunteer Requirement Report</h1>
+        <p>This report helps compare swimmers who competed in a meet with parents who volunteered. <br>
+           <strong>Rule:</strong> If a family had a swimmer competing in a meet, a parent should have volunteered for that meet.</p>
 
-    <div class="dropdown-container">
-        <div class="dropdown-box">
-            <label for="parentNameFilterSelect">Parent Name:</label>
-            <select id="parentNameFilterSelect">
-                <option value="">All Parents</option>
-            </select>
+        <div class="dropdown-container">
+            <div class="dropdown-box">
+                <label for="parentNameFilterSelect">Parent Name:</label>
+                <select id="parentNameFilterSelect">
+                    <option value="">All Parents</option>
+                </select>
+            </div>
+            <div class="dropdown-box">
+                <label for="metRequirementFilterSelect">Met Requirement:</label>
+                <select id="metRequirementFilterSelect">
+                    <option value="">All Statuses</option>
+                    <option value="YES">Met (YES)</option>
+                    <option value="NO">Not Met (NO)</option>
+                    <option value="N/A">N/A</option>
+                </select>
+            </div>
         </div>
-        <div class="dropdown-box">
-            <label for="metRequirementFilterSelect">Met Requirement:</label>
-            <select id="metRequirementFilterSelect">
-                <option value="">All Statuses</option>
-                <option value="YES">Met (YES)</option>
-                <option value="NO">Not Met (NO)</option>
-                <option value="N/A">N/A</option>
-            </select>
-        </div>
-    </div>
 
-    <div id="report-container" class="loading-message">Loading report data...</div>
-
-    <script>
+        <div id="report-container" class="loading-message">Loading report data...</div>
+    </div> <script>
         // --- IMPORTANT: These URLs are pre-filled based on your previous input ---
         const PARENT_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
         const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
@@ -261,7 +261,7 @@
                 const filterParentNames = currentFilterParentName.split('; ').map(name => name.trim());
 
                 filteredRows = filteredRows.filter(row => {
-                    const rowParents = row._allParentNamesForFilter || []; // Use the new internal property
+                    const rowParents = row._allParentNamesForFilter || [];
                     return filterParentNames.some(filterName => rowParents.includes(filterName));
                 });
             }
@@ -331,6 +331,7 @@
                     applyFiltersAndSort();
                 });
                 // The sort arrow is handled by CSS ::after pseudo-element based on .sortable, .asc, .desc classes
+                // No need to insert a <span> anymore.
             });
             // Initial sort applied in generateReport via applyFiltersAndSort
         }
@@ -350,7 +351,6 @@
             swimmersCompetingData.forEach(row => {
                 const parentsString = row["Associated Parents For Swimmer"];
                 if (parentsString && parentsString !== "No Parent Linked (for Swimmer)") {
-                    // Split the string and add each individual parent name
                     parentsString.split('; ').forEach(parent => uniqueParents.add(parent.trim()));
                 }
             });
@@ -414,7 +414,7 @@
                     if (!(meetDate in competedSwimmersByMeet[meetName])) {
                         competedSwimmersByMeet[meetName][meetDate] = {};
                     }
-                    competedSwimmersByMeet[meetName][meetDate][swimmerName] = associatedParents; // Store parents for this swimmer
+                    competedSwimmersByMeet[meetName][meetDate][swimmerName] = associatedParents;
                 }
             });
 
@@ -466,7 +466,7 @@
                     "Meet Name": meetName,
                     "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
                     "Competed YES/NO": competedStatus,
-                    "Parent Name": parentName, // This is the volunteer parent
+                    "Parent Name": parentName,
                     "Job": job,
                     "Shift": shift,
                     "Points": points,
@@ -487,7 +487,7 @@
                                 "Meet Name": meetName,
                                 "Swimmer Name": swimmerName,
                                 "Competed YES/NO": "YES",
-                                "Parent Name": swimmerParents, // Display associated parents from swimmer data
+                                "Parent Name": swimmerParents, // Display associated parents
                                 "Job": "N/A",
                                 "Shift": "N/A",
                                 "Points": "N/A",
