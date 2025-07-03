@@ -130,9 +130,13 @@
       return `${month.padStart(2, '0')} - ${day.padStart(2, '0')}`;
     }
 
-    function extractFirstName(fullName) {
+function extractFirstName(fullName) {
   if (!fullName) return "";
-  return fullName.trim().split(" ")[0]; // Take the first part
+  const parts = fullName.split(",");
+  if (parts.length === 2) {
+    return parts[1].trim().split(" ")[0]; // "Ackerson, Adam James" → "Adam"
+  }
+  return fullName.trim().split(" ")[0]; // fallback
 }
     
     function extractLastName(name) {
