@@ -135,7 +135,12 @@
           const swimmer = row["Swimmer Name"];
           const parents = row["Associated Parents For Swimmer"];
           if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
-          const parentSetKey = Array.from(new Set((Array.isArray(parents) ? parents : parents.split(';')).map(p => p.trim()))).sort().join('|');
+          const parentSet = new Set();
+          (Array.isArray(parents) ? parents : parents.split(';')).forEach(p => parentSet.add(p.trim()));
+          if (typeof row["Associated Parents For Swimmer"] === "string") {
+            row["Associated Parents For Swimmer"].split(';').forEach(p => parentSet.add(p.trim()));
+          }
+          const parentSetKey = Array.from(parentSet).sort().join('|');
           const firstParent = parentSetKey.split('|')[0];
           const parentLastName = volunteerLastNameMap[firstParent] || extractLastName(firstParent);
           const familyName = `${parentLastName} Family`;
