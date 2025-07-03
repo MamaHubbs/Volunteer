@@ -1,611 +1,415 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Volunteer Requirement Report</title>
-    <style>
-        /* BASE STYLES FROM USER'S WEBSITE */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f8f8f8;
-            color: #333;
-        }
-
-        /* NEW: Wrapper for fixed page width and centering */
-        .main-content-wrapper {
-            width: 890px; /* Fixed width as requested */
-            margin: 0 auto; /* Centers the div horizontally */
-            overflow-x: auto;
-            box-sizing: border-box; /* Include padding/border in the width calculation */
-            padding: 10px; /* Added padding inside the wrapper */
-            /* Ensure text inside wrapper aligns properly, overridden by specific elements */
-        }
-
-        * {
-    box-sizing: border-box;
-}
-
-        h1 {
-            text-align: center; /* This will center the h1 itself */
-            color: #0156B3;
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        /* Adjusting paragraph alignment for better centering within the wrapper */
-        p {
-            text-align: center; /* Center the descriptive text */
-            color: #555;
-            line-height: 1.5;
-        }
-
-        /* Filter/Dropdown Section - Renamed classes to match provided CSS */
-        .dropdown-container {
-            text-align: center; /* This centers its inline-block children (dropdown-box) */
-            margin-bottom: 8px;
-            font-size: 0.7em;
-            position: sticky;
-            top: 0;
-            background-color: #f8f8f8;
-            padding: 10px 0;
-            z-index: 1000;
-            border-bottom: 1px solid #ccc;
-            /* If this container itself needs to be centered, and it's not 100% width of its parent */
-            /* width: fit-content; margin: 0 auto; */ /* Uncomment if needed, but flex/inline-block should keep it centered */
-        }
-
-        .dropdown-box {
-            display: inline-block;
-            margin: 0 4px;
-        }
-
-        label {
-            font-weight: bold;
-            display: block;
-            margin-bottom: 6px;
-        }
-
-        select, input[type="text"] {
-            padding: 3px 6px;
-            font-size: 0.7em;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-        }
-
-        button {
-            padding: 4px 8px;
-            font-size: 0.7em;
-            border-radius: 4px;
-            background-color: #0156B3;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-
-        /* Summary Stats Section */
-        .summary-stats-section {
-            background-color: #e5f1ff;
-            border: 1px solid #cce5ff;
-            padding: 10px 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            text-align: center; /* Centers text within the summary box */
-            font-size: 0.9em;
-            color: #0156B3;
-            /* If this container itself needs to be centered, and it's not 100% width of its parent */
-            /* max-width: 80%; margin: 0 auto; */ /* Uncomment if needed, adjust max-width */
-        }
-        .summary-stats-section h2 {
-            font-size: 1.2em;
-            margin-top: 0;
-            margin-bottom: 5px;
-            color: #2c3e50;
-        }
-        .summary-stats-section p {
-            margin: 5px 0;
-            color: #34495e;
-            font-weight: bold;
-        }
-        .summary-stats-section span {
-            color: #0156B3;
-        }
-
-        /* Table Styling */
-        table {
-            table-layout: fixed;
-            width: 100%; /* Will fill the 890px wrapper */
-            max-width: 890px;
-            border-collapse: collapse;
-            font-size: 0.68em;
-            margin-top: 10px;
-            /* Tables are block elements; if they don't auto-center when width is less than 100%,
-               you'd add margin: 0 auto; here. But since it's 100%, it will fill. */
-        }
-
-        th, td {
-            padding: 6px 10px;
-            border: 1px solid #ccc;
-            text-align: left; /* Default text alignment within table cells */
-            vertical-align: top;
-        }
-
-        th {
-            background-color: #e5f1ff;
-            position: sticky;
-            top: 50px;
-            z-index: 1;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        
-        /* Sort Arrows */
-        th.sortable::after {
-            content: ' \21C5';
-            font-size: 0.68em;
-            color: #666;
-            margin-left: 5px;
-        }
-        th.sortable.asc::after {
-            content: ' \25B2';
-            color: #0156B3;
-        }
-        th.sortable.desc::after {
-            content: ' \25BC';
-            color: #0156B3;
-        }
-
-        /* Alternating row colors */
-        tbody tr:nth-child(even) { background-color: #fdfdfd; }
-        tbody tr:nth-child(odd) { background-color: #ffffff; }
-        tbody tr:hover { background-color: #eaf6ff; }
-
-        /* Error Message */
-        .error {
-            color: red;
-            text-align: center;
-            margin-top: 20px;
-        }
-
-        /* Column Widths - Adjusted for 8 columns and content */
-th:nth-child(1), td:nth-child(1) { width: 26%; }  /* Meet */
-th:nth-child(2), td:nth-child(2) { width: 15%; }  /* Swimmer(s) */
-th:nth-child(3), td:nth-child(3) { width: 7%; text-align: center; }  /* Competed? */
-th:nth-child(4), td:nth-child(4) { width: 15%; }  /* Parent Name */
-th:nth-child(5), td:nth-child(5) { width: 8%; }   /* Job */
-th:nth-child(6), td:nth-child(6) { width: 13%; }  /* Shift */
-th:nth-child(7), td:nth-child(7) { width: 5%; text-align: center; }  /* Points */
-th:nth-child(8), td:nth-child(8) { width: 12%; }  /* Compliant? */
-
-        /* Cell content overflow */
-        td {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* Conditional Styling for Competed / Met Requirement */
-        .competed-yes { background-color: #d4edda; }
-        .competed-no { background-color: #f8d7da; }
-        .met-yes { font-weight: bold; color: #28a745; }
-        .met-no { font-weight: bold; color: #dc3545; }
-        .met-na { color: #6c757d; font-style: italic; }
-
-        /* Loading message */
-        .loading-message { color: #3498db; font-style: italic; text-align: center; padding: 20px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Volunteer Requirement Report</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f8f8f8;
+      color: #333;
+    }
+    .main-content-wrapper {
+      width: 890px;
+      margin: 0 auto;
+      overflow-x: auto;
+      box-sizing: border-box;
+      padding: 10px;
+    }
+    * { box-sizing: border-box; }
+    h1 {
+      text-align: center;
+      color: #0156B3;
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+    p {
+      text-align: center;
+      color: #555;
+      line-height: 1.5;
+    }
+    .dropdown-container {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 0.7em;
+      position: sticky;
+      top: 0;
+      background-color: #f8f8f8;
+      padding: 10px 0;
+      z-index: 1000;
+      border-bottom: 1px solid #ccc;
+    }
+    .dropdown-box {
+      display: inline-block;
+      margin: 0 4px;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 6px;
+    }
+    select, input[type="text"] {
+      padding: 3px 6px;
+      font-size: 0.7em;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 4px 8px;
+      font-size: 0.7em;
+      border-radius: 4px;
+      background-color: #0156B3;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .summary-stats-section {
+      background-color: #e5f1ff;
+      border: 1px solid #cce5ff;
+      padding: 10px 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      text-align: center;
+      font-size: 0.9em;
+      color: #0156B3;
+    }
+    .summary-stats-section h2 {
+      font-size: 1.2em;
+      margin-top: 0;
+      margin-bottom: 5px;
+      color: #2c3e50;
+    }
+    .summary-stats-section p {
+      margin: 5px 0;
+      color: #34495e;
+      font-weight: bold;
+    }
+    .summary-stats-section span {
+      color: #0156B3;
+    }
+    table {
+      table-layout: fixed;
+      width: 100%;
+      max-width: 890px;
+      border-collapse: collapse;
+      font-size: 0.68em;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 6px 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background-color: #e5f1ff;
+      position: sticky;
+      top: 50px;
+      z-index: 1;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    th.sortable::after {
+      content: ' \21C5';
+      font-size: 0.68em;
+      color: #666;
+      margin-left: 5px;
+    }
+    th.sortable.asc::after {
+      content: ' \25B2';
+      color: #0156B3;
+    }
+    th.sortable.desc::after {
+      content: ' \25BC';
+      color: #0156B3;
+    }
+    tbody tr:nth-child(even) { background-color: #fdfdfd; }
+    tbody tr:nth-child(odd) { background-color: #ffffff; }
+    tbody tr:hover { background-color: #eaf6ff; }
+    .error {
+      color: red;
+      text-align: center;
+      margin-top: 20px;
+    }
+    th:nth-child(1), td:nth-child(1) { width: 26%; }
+    th:nth-child(2), td:nth-child(2) { width: 15%; }
+    th:nth-child(3), td:nth-child(3) { width: 7%; text-align: center; }
+    th:nth-child(4), td:nth-child(4) { width: 15%; }
+    th:nth-child(5), td:nth-child(5) { width: 8%; }
+    th:nth-child(6), td:nth-child(6) { width: 13%; }
+    th:nth-child(7), td:nth-child(7) { width: 5%; text-align: center; }
+    th:nth-child(8), td:nth-child(8) { width: 12%; }
+    td {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .competed-yes { background-color: #d4edda; }
+    .competed-no { background-color: #f8d7da; }
+    .met-yes { font-weight: bold; color: #28a745; }
+    .met-no { font-weight: bold; color: #dc3545; }
+    .met-na { color: #6c757d; font-style: italic; }
+    .loading-message { color: #3498db; font-style: italic; text-align: center; padding: 20px; }
+  </style>
 </head>
 <body>
-    <div class="main-content-wrapper">
-        <h1>Volunteer Requirement Report</h1>
-        <p>This report compares swimmers who competed at a specific meet vs parents who volunteered at that specific meet. <br>
-           <strong>Rule:</strong> If a family had a swimmer competing in a meet, a parent should have volunteered for that meet.</p>
+  <div class="main-content-wrapper">
+    <h1>Volunteer Requirement Report</h1>
+    <p>This report compares swimmers who competed at a specific meet vs parents who volunteered at that specific meet. <br>
+      <strong>Rule:</strong> If a family had a swimmer competing in a meet, a parent should have volunteered for that meet.</p>
+    <div class="dropdown-container">
+      <div class="dropdown-box">
+        <label for="parentNameFilterSelect">Parent Name:</label>
+        <select id="parentNameFilterSelect">
+          <option value="">All Parents</option>
+        </select>
+      </div>
+      <div class="dropdown-box">
+        <label for="metRequirementFilterSelect">Met Requirement:</label>
+        <select id="metRequirementFilterSelect">
+          <option value="">All Statuses</option>
+          <option value="YES">Met (YES)</option>
+          <option value="NO">Not Met (NO)</option>
+          <option value="N/A">N/A</option>
+        </select>
+      </div>
+    </div>
+    <div class="summary-stats-section">
+      <h2>Summary for <span id="summary-context-label">All Parents</span></h2>
+      <p>Meets Swum by Associated Children: <span id="total-meets-swum">0</span></p>
+      <p>Meets Volunteered: <span id="total-meets-volunteered">0</span></p>
+    </div>
+    <div id="report-container" class="loading-message">Loading report data...</div>
+  </div>
 
-        <div class="dropdown-container">
-            <div class="dropdown-box">
-                <label for="parentNameFilterSelect">Parent Name:</label>
-                <select id="parentNameFilterSelect">
-                    <option value="">All Parents</option>
-                </select>
-            </div>
-            <div class="dropdown-box">
-                <label for="metRequirementFilterSelect">Met Requirement:</label>
-                <select id="metRequirementFilterSelect">
-                    <option value="">All Statuses</option>
-                    <option value="YES">Met (YES)</option>
-                    <option value="NO">Not Met (NO)</option>
-                    <option value="N/A">N/A</option>
-                </select>
-            </div>
-        </div>
+  <script>
+    const PARENT_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
+    const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
 
-        <div class="summary-stats-section">
-            <h2>Summary for <span id="summary-context-label">All Parents</span></h2>
-            <p>Meets Swum by Associated Children: <span id="total-meets-swum">0</span></p>
-            <p>Meets Volunteered: <span id="total-meets-volunteered">0</span></p>
-        </div>
+    let allReportRows = [];
+    let currentSortKey = "Meet Date";
+    let currentSortDirection = "asc";
+    let currentFilterParentName = "";
+    let currentFilterMetRequirement = "";
 
-        <div id="report-container" class="loading-message">Loading report data...</div>
-    </div> <script>
+    function formatMeetDate(dateString) {
+      const date = new Date(dateString);
+      if (isNaN(date)) return "N/A";
+      return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
+    }
 
-        const PARENT_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
-        const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
+    function parseDataclipJson(data) {
+      if (!data || !Array.isArray(data.fields) || !Array.isArray(data.values)) return [];
+      return data.values.map(row => Object.fromEntries(data.fields.map((f, i) => [f, row[i]])));
+    }
 
+    async function loadJsonData(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+      const rawData = await response.json();
+      return parseDataclipJson(rawData);
+    }
 
-        let allReportRows = [];
-        let currentSortKey = "Meet Date";
-        let currentSortDirection = "asc";
-        let currentFilterParentName = "";
-        let currentFilterMetRequirement = "";
+    function renderTableBody(dataRows) {
+      const tbody = document.querySelector('#report-container tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (dataRows.length === 0) {
+        tbody.insertAdjacentHTML('beforeend', `<tr><td colspan="8" style="text-align: center; color: #6c757d;">No results found for current filters.</td></tr>`);
+        return;
+      }
 
-        function parseDataclipJson(data) {
-            if (!data || !Array.isArray(data.fields) || !Array.isArray(data.values)) {
-                console.warn("Provided data does not match expected Dataclip JSON format:", data);
-                return [];
-            }
-            const fields = data.fields;
-            const values = data.values;
-            return values.map(row => {
-                const obj = {};
-                fields.forEach((field, index) => {
-                    obj[field] = row[index];
-                });
-                return obj;
-            });
+      dataRows.forEach(rowData => {
+        const competedClass = rowData["Competed YES/NO"] === "YES" ? "competed-yes" : "competed-no";
+        const metClass = rowData["Met Requirement"] === "YES" ? "met-yes" :
+                         (rowData["Met Requirement"].startsWith("NO") ? "met-no" : "met-na");
+        const meetDisplay = `${formatMeetDate(rowData["Meet Date"])} - ${rowData["Meet Name"] || "N/A"}`;
+        const rowHtml = `
+          <tr class="${competedClass}">
+            <td>${meetDisplay}</td>
+            <td>${rowData["Swimmer Name"] || "N/A"}</td>
+            <td>${rowData["Competed YES/NO"] || "N/A"}</td>
+            <td>${rowData["Parent Name"] || "N/A"}</td>
+            <td>${rowData["Job"] || "N/A"}</td>
+            <td>${rowData["Shift"] || "N/A"}</td>
+            <td>${rowData["Points"] || "N/A"}</td>
+            <td class="${metClass}">${rowData["Met Requirement"] || "N/A"}</td>
+          </tr>`;
+        tbody.insertAdjacentHTML('beforeend', rowHtml);
+      });
+    }
+
+    function applyFiltersAndSort() {
+      let filteredRows = [...allReportRows];
+
+      if (currentFilterParentName) {
+        const names = currentFilterParentName.split('; ').map(n => n.trim());
+        filteredRows = filteredRows.filter(row => {
+          const parents = row._allParentNamesForFilter || [];
+          return names.some(name => parents.includes(name));
+        });
+      }
+
+      if (currentFilterMetRequirement) {
+        filteredRows = filteredRows.filter(row => {
+          const val = row["Met Requirement"] || "";
+          return currentFilterMetRequirement === "YES" ? val === "YES" :
+                 currentFilterMetRequirement === "NO" ? val.startsWith("NO") :
+                 currentFilterMetRequirement === "N/A" ? val.startsWith("N/A") : false;
+        });
+      }
+
+      filteredRows.sort((a, b) => {
+        let valA = a[currentSortKey], valB = b[currentSortKey];
+        if (currentSortKey === "Meet Date") {
+          return currentSortDirection === "asc"
+            ? new Date(valA) - new Date(valB)
+            : new Date(valB) - new Date(valA);
         }
+        return currentSortDirection === "asc"
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA));
+      });
 
-        async function loadJsonData(url) {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status} for ${url}`);
-                }
-                const rawData = await response.json();
-                return parseDataclipJson(rawData);
-            } catch (error) {
-                console.error(`Error loading or parsing data from ${url}:`, error);
-                const container = document.getElementById('report-container');
-                container.innerHTML = `<p class="error">Failed to load data from ${url}. Please check the URL, network, or JSON format. Error: ${error.message}</p>`;
-                throw error;
-            }
+      renderTableBody(filteredRows);
+      updateSummaryDisplay(filteredRows);
+    }
+
+    function updateSummaryDisplay(displayedRows) {
+      const swumSet = new Set();
+      const volunteeredSet = new Set();
+
+      displayedRows.forEach(row => {
+        const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
+        if (row["Competed YES/NO"] === "YES") {
+          row["Swimmer Name"].split(', ').forEach(name => swumSet.add(`${meetKey}|${name}`));
         }
-
-        function renderTableBody(dataRows) {
-            const tbody = document.querySelector('#report-container tbody');
-            if (!tbody) return;
-
-            tbody.innerHTML = '';
-
-            if (dataRows.length === 0) {
-                tbody.insertAdjacentHTML('beforeend', `<tr><td colspan="9" style="text-align: center; color: #6c757d;">No results found for current filters.</td></tr>`);
-                return;
-            }
-
-            dataRows.forEach(rowData => {
-                const competedClass = rowData["Competed YES/NO"] === "YES" ? "competed-yes" : "competed-no";
-                const metClass = rowData["Met Requirement"] === "YES" ? "met-yes" :
-                                 (rowData["Met Requirement"].startsWith("NO") ? "met-no" : "met-na");
-
-                const rowHtml = `
-                    <tr class="${competedClass}">
-                        <td>${rowData["Meet Date"] || "N/A"}${rowData["Meet Name"] || "N/A"}</td>
-                        <td>${rowData["Swimmer Name"] || "N/A"}</td>
-                        <td>${rowData["Competed YES/NO"] || "N/A"}</td>
-                        <td>${rowData["Parent Name"] || "N/A"}</td>
-                        <td>${rowData["Job"] || "N/A"}</td>
-                        <td>${rowData["Shift"] || "N/A"}</td>
-                        <td>${rowData["Points"] || "N/A"}</td>
-                        <td class="${metClass}">${rowData["Met Requirement"] || "N/A"}</td>
-                    </tr>
-                `;
-                tbody.insertAdjacentHTML('beforeend', rowHtml);
-            });
+        if (row.Job && row.Job !== "N/A") {
+          (row._allParentNamesForFilter || []).forEach(p => volunteeredSet.add(`${meetKey}|${p}`));
         }
+      });
 
-        function applyFiltersAndSort() {
-            let filteredRows = allReportRows;
+      document.getElementById('total-meets-swum').textContent = swumSet.size;
+      document.getElementById('total-meets-volunteered').textContent = volunteeredSet.size;
+      document.getElementById('summary-context-label').textContent = currentFilterParentName ? `Parent: ${currentFilterParentName}` : "All Parents";
+    }
 
-            // Apply Parent Name filter
-            if (currentFilterParentName && currentFilterParentName !== "") {
-                const filterParentNames = currentFilterParentName.split('; ').map(name => name.trim());
+    function initSorting() {
+      document.querySelectorAll('th[data-sort-key]').forEach(th => {
+        th.classList.add('sortable');
+        th.addEventListener('click', () => {
+          const key = th.getAttribute('data-sort-key');
+          if (currentSortKey === key) {
+            currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
+          } else {
+            currentSortKey = key;
+            currentSortDirection = "asc";
+          }
+          document.querySelectorAll('th[data-sort-key]').forEach(h => h.classList.remove('asc', 'desc'));
+          th.classList.add(currentSortDirection);
+          applyFiltersAndSort();
+        });
+      });
+    }
 
-                filteredRows = filteredRows.filter(row => {
-                    const rowParents = row._allParentNamesForFilter || [];
-                    return filterParentNames.some(filterName => rowParents.includes(filterName));
-                });
-            }
+    function populateParentFilterDropdown(volData, swimData) {
+      const dropdown = document.getElementById('parentNameFilterSelect');
+      const parents = new Set();
+      volData.forEach(r => r.Parent && parents.add(r.Parent));
+      swimData.forEach(r => (r["Associated Parents For Swimmer"] || "").split('; ').forEach(p => parents.add(p.trim())));
+      dropdown.innerHTML = '<option value="">All Parents</option>' + [...parents].sort().map(p => `<option value="${p}">${p}</option>`).join('');
+      dropdown.addEventListener('change', e => {
+        currentFilterParentName = e.target.value;
+        applyFiltersAndSort();
+      });
+    }
 
-            // Apply Met Requirement filter
-            if (currentFilterMetRequirement && currentFilterMetRequirement !== "") {
-                filteredRows = filteredRows.filter(row => {
-                    if (currentFilterMetRequirement === "YES") {
-                        return row["Met Requirement"] === "YES";
-                    } else if (currentFilterMetRequirement === "NO") {
-                        return row["Met Requirement"].startsWith("NO");
-                    } else if (currentFilterMetRequirement === "N/A") {
-                        return row["Met Requirement"].startsWith("N/A");
-                    }
-                    return false;
-                });
-            }
+    function initMetRequirementFilter() {
+      document.getElementById('metRequirementFilterSelect').addEventListener('change', e => {
+        currentFilterMetRequirement = e.target.value;
+        applyFiltersAndSort();
+      });
+    }
 
-            // Apply sort
-            filteredRows.sort((a, b) => {
-                const valA = a[currentSortKey];
-                const valB = b[currentSortKey];
+    async function generateReport() {
+      const container = document.getElementById('report-container');
+      container.innerHTML = '<p class="loading-message">Processing data...</p>';
+      let swimmers = [], volunteers = [];
+      try {
+        [swimmers, volunteers] = await Promise.all([
+          loadJsonData(SWIMMER_DATA_URL),
+          loadJsonData(PARENT_DATA_URL)
+        ]);
+      } catch (e) {
+        container.innerHTML = `<p class="error">Failed to load data: ${e.message}</p>`;
+        return;
+      }
 
-                let comparison = 0;
+      const competedMap = {};
+      swimmers.forEach(row => {
+        if (!row["Count of Events With Results"]) return;
+        const {"Meet Date": date, "Meet Name": name, "Swimmer Name": swimmer, "Associated Parents For Swimmer": parents} = row;
+        competedMap[`${date}|${name}|${swimmer}`] = parents;
+      });
 
-                if (currentSortKey === "Meet Date") {
-                    comparison = new Date(valA) - new Date(valB);
-                } else if (currentSortKey === "Points") {
-                    comparison = (parseFloat(valA) || 0) - (parseFloat(valB) || 0);
-                } else if (currentSortKey === "Competed YES/NO" || currentSortKey === "Met Requirement") {
-                    const order = {
-                        "YES": 1,
-                        "NoSwimmer": 2,
-                        "NO": 3,
-                        "N/A": 4
-                    };
-                    comparison = (order[valA] || 99) - (order[valB] || 99);
-                } else {
-                    comparison = String(valA).localeCompare(String(valB));
-                }
+      const rows = [];
+      const seenJobs = new Set();
+      const seenSwims = new Set();
 
-                return currentSortDirection === "asc" ? comparison : -comparison;
-            });
-
-            renderTableBody(filteredRows);
-            updateSummaryDisplay(filteredRows);
+      volunteers.forEach(row => {
+        const {"Meet Date": date, "Meet Name": name, Parent: parent, Job: job, Shift: shift, Points: points} = row;
+        const swimmers = Array.from({ length: 9 }, (_, i) => row[`Swimmer ${i + 1}`]).filter(Boolean);
+        const key = `${date}|${name}|${parent}|${job}|${shift}|${points}`;
+        if (seenJobs.has(key)) return;
+        seenJobs.add(key);
+        let competed = "NO";
+        for (const s of swimmers) {
+          if (competedMap[`${date}|${name}|${s}`]) {
+            competed = "YES";
+            seenSwims.add(`${date}|${name}|${s}`);
+          }
         }
+        rows.push({
+          "Meet Date": date, "Meet Name": name, "Swimmer Name": swimmers.join(", ") || "N/A",
+          "Competed YES/NO": competed, "Parent Name": parent, Job: job, Shift: shift, Points: points,
+          "Met Requirement": competed === "YES" ? "YES" : "N/A",
+          _allParentNamesForFilter: [parent]
+        });
+      });
 
-        function updateSummaryDisplay(displayedRows) {
-            const totalMeetsSwumSet = new Set();
-            const totalMeetsVolunteeredSet = new Set();
-
-            displayedRows.forEach(row => {
-                const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
-
-                if (row["Competed YES/NO"] === "YES") {
-                    const swimmersInRow = row["Swimmer Name"].split(', ').map(name => name.trim());
-                    swimmersInRow.forEach(swimmer => {
-                         totalMeetsSwumSet.add(`${meetKey}|${swimmer}`);
-                    });
-                }
-                
-                if (row.Job && row.Job !== "N/A") {
-                    const parentNamesInRow = row._allParentNamesForFilter || [];
-                    parentNamesInRow.forEach(parent => {
-                        if (parent && parent !== "N/A (No Volunteer)") {
-                             totalMeetsVolunteeredSet.add(`${meetKey}|${parent}`);
-                        }
-                    });
-                }
-            });
-
-            document.getElementById('total-meets-swum').textContent = totalMeetsSwumSet.size;
-            document.getElementById('total-meets-volunteered').textContent = totalMeetsVolunteeredSet.size;
-            
-            const summaryContextLabel = document.getElementById('summary-context-label');
-            if (currentFilterParentName && currentFilterParentName !== "") {
-                summaryContextLabel.textContent = `Parent: ${currentFilterParentName}`;
-            } else {
-                summaryContextLabel.textContent = `All Parents`;
-            }
+      Object.entries(competedMap).forEach(([key, parents]) => {
+        if (!seenSwims.has(key)) {
+          const [date, name, swimmer] = key.split('|');
+          rows.push({
+            "Meet Date": date, "Meet Name": name, "Swimmer Name": swimmer, "Competed YES/NO": "YES",
+            "Parent Name": parents, Job: "N/A", Shift: "N/A", Points: "N/A", "Met Requirement": "NO",
+            _allParentNamesForFilter: parents.split('; ').map(p => p.trim())
+          });
         }
+      });
 
-        function initSorting() {
-            document.querySelectorAll('th[data-sort-key]').forEach(header => {
-                header.classList.add('sortable');
+      allReportRows = rows;
+      container.innerHTML = `<table><thead><tr>
+        <th data-sort-key="Meet Date">Meet</th>
+        <th data-sort-key="Swimmer Name">Swimmer(s)</th>
+        <th data-sort-key="Competed YES/NO">Competed?</th>
+        <th data-sort-key="Parent Name">Parent Name</th>
+        <th data-sort-key="Job">Job</th>
+        <th data-sort-key="Shift">Shift</th>
+        <th data-sort-key="Points">Points</th>
+        <th data-sort-key="Met Requirement">Compliant?</th>
+      </tr></thead><tbody></tbody></table>`;
 
-                header.addEventListener('click', () => {
-                    const key = header.getAttribute('data-sort-key');
-                    if (currentSortKey === key) {
-                        currentSortDirection = (currentSortDirection === "asc") ? "desc" : "asc";
-                    } else {
-                        currentSortKey = key;
-                        currentSortDirection = "asc";
-                    }
+      populateParentFilterDropdown(volunteers, swimmers);
+      initMetRequirementFilter();
+      initSorting();
+      applyFiltersAndSort();
+    }
 
-                    document.querySelectorAll('th[data-sort-key]').forEach(th => th.classList.remove('asc', 'desc'));
-                    header.classList.add(currentSortDirection);
-
-                    applyFiltersAndSort();
-                });
-            });
-        }
-
-        function populateParentFilterDropdown(parentVolunteersData, swimmersCompetingData) {
-            const selectElement = document.getElementById('parentNameFilterSelect');
-            const uniqueParents = new Set();
-
-            parentVolunteersData.forEach(row => {
-                if (row.Parent && row.Parent !== "N/A (No Volunteer)") {
-                    uniqueParents.add(row.Parent);
-                }
-            });
-
-            swimmersCompetingData.forEach(row => {
-                const parentsString = row["Associated Parents For Swimmer"];
-                if (parentsString && parentsString !== "No Parent Linked (for Swimmer)") {
-                    parentsString.split('; ').forEach(parent => uniqueParents.add(parent.trim()));
-                }
-            });
-
-            const sortedParents = Array.from(uniqueParents).sort();
-
-            selectElement.innerHTML = '<option value="">All Parents</option>';
-
-            sortedParents.forEach(parentName => {
-                const option = document.createElement('option');
-                option.value = parentName;
-                option.textContent = parentName;
-                selectElement.appendChild(option);
-            });
-
-            selectElement.addEventListener('change', (event) => {
-                currentFilterParentName = event.target.value;
-                applyFiltersAndSort();
-            });
-        }
-
-        function initMetRequirementFilter() {
-            const selectElement = document.getElementById('metRequirementFilterSelect');
-            selectElement.addEventListener('change', (event) => {
-                currentFilterMetRequirement = event.target.value;
-                applyFiltersAndSort();
-            });
-        }
-
-        async function generateReport() {
-            const container = document.getElementById('report-container');
-            container.innerHTML = '<p class="loading-message">Processing data...</p>';
-
-            let swimmersCompeting = [];
-            let parentVolunteers = [];
-
-            try {
-                swimmersCompeting = await loadJsonData(SWIMMER_DATA_URL);
-                parentVolunteers = await loadJsonData(PARENT_DATA_URL);
-            } catch (error) {
-                return;
-            }
-
-            if (!swimmersCompeting.length && !parentVolunteers.length) {
-                container.innerHTML = "<p>No data loaded to generate report.</p>";
-                return;
-            }
-
-            const competedSwimmersByMeet = {};
-            swimmersCompeting.forEach(row => {
-                const meetName = row["Meet Name"];
-                const meetDate = row["Meet Date"];
-                const swimmerName = row["Swimmer Name"];
-                const countResults = row["Count of Events With Results"] || 0;
-                const associatedParents = row["Associated Parents For Swimmer"];
-
-                if (meetName && meetDate && swimmerName && countResults > 0) {
-                    if (!(meetName in competedSwimmersByMeet)) {
-                        competedSwimmersByMeet[meetName] = {};
-                    }
-                    if (!(meetDate in competedSwimmersByMeet[meetName])) {
-                        competedSwimmersByMeet[meetName][meetDate] = {};
-                    }
-                    competedSwimmersByMeet[meetName][meetDate][swimmerName] = associatedParents;
-                }
-            });
-
-            const tempReportRows = [];
-            const processedParentJobCombos = new Set();
-            const processedSwimmerMeetCombos = new Set();
-
-            parentVolunteers.forEach(parentRow => {
-                const meetDate = parentRow["Meet Date"];
-                const meetName = parentRow["Meet Name"];
-                const parentName = parentRow.Parent;
-                const job = parentRow.Job;
-                const shift = parentRow.Shift; // Corrected: This was 'Yes' in a previous paste, should be 'Shift'
-                const points = parentRow.Points;
-
-                const parentJobId = `${meetDate}|${meetName}|${parentName}|${job}|${shift}|${points}`;
-                if (processedParentJobCombos.has(parentJobId)) {
-                    return;
-                }
-                processedParentJobCombos.add(parentJobId);
-
-                const associatedSwimmersList = [];
-                for (let i = 1; i <= 9; i++) {
-                    const swimmerCol = parentRow[`Swimmer ${i}`];
-                    if (swimmerCol) {
-                        associatedSwimmersList.push(swimmerCol);
-                    }
-                }
-
-                let competedStatus = "NO";
-                for (const swimmer of associatedSwimmersList) {
-                    if (meetName in competedSwimmersByMeet &&
-                       meetDate in competedSwimmersByMeet[meetName] &&
-                       swimmer in competedSwimmersByMeet[meetName][meetDate]) {
-                        competedStatus = "YES";
-                        processedSwimmerMeetCombos.add(`${meetDate}|${meetName}|${swimmer}`);
-                    }
-                }
-
-                let metRequirement;
-                if (competedStatus === "YES") {
-                    metRequirement = "YES";
-                } else {
-                    metRequirement = "N/A";
-                }
-
-                const row = {
-                    "Meet": `${meetDate} ${meetName}`,
-                    "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
-                    "Competed YES/NO": competedStatus,
-                    "Parent Name": parentName,
-                    "Job": job,
-                    "Shift": shift,
-                    "Points": points,
-                    "Met Requirement": metRequirement,
-                    _allParentNamesForFilter: [parentName].filter(name => name !== "N/A (No Volunteer)")
-                };
-                tempReportRows.push(row);
-            });
-
-            for (const meetName in competedSwimmersByMeet) {
-                for (const meetDate in competedSwimmersByMeet[meetName]) {
-                    for (const swimmerName in competedSwimmersByMeet[meetName][meetDate]) {
-                        const swimmerParents = competedSwimmersByMeet[meetName][meetDate][swimmerName];
-                        if (!processedSwimmerMeetCombos.has(`${meetDate}|${meetName}|${swimmerName}`)) {
-                            const row = {
-                                "Meet": `${meetDate} ${meetName}`,
-                                "Swimmer Name": swimmerName,
-                                "Competed YES/NO": "YES",
-                                "Parent Name": swimmerParents,
-                                "Job": "N/A",
-                                "Shift": "N/A",
-                                "Points": "N/A",
-                                "Met Requirement": "NO",
-                                _allParentNamesForFilter: swimmerParents.split('; ').map(name => name.trim()).filter(name => name !== "No Parent Linked")
-                            };
-                            tempReportRows.push(row);
-                        }
-                    }
-                }
-            }
-
-            allReportRows = tempReportRows;
-
-            let initialTableHtml = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th data-sort-key="Meet Date" data-sort-key="Meet Name">Meet</th>
-                            <th data-sort-key="Swimmer Name">Swimmer(s)</th>
-                            <th data-sort-key="Competed YES/NO">Competed?</th>
-                            <th data-sort-key="Parent Name">Parent Name</th>
-                            <th data-sort-key="Job">Job</th>
-                            <th data-sort-key="Shift">Shift</th>
-                            <th data-sort-key="Points">Points</th>
-                            <th data-sort-key="Met Requirement">Compliant?</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        </tbody>
-                </table>
-            `;
-            container.innerHTML = initialTableHtml;
-
-            populateParentFilterDropdown(parentVolunteers, swimmersCompeting);
-            initMetRequirementFilter();
-            initSorting();
-
-            applyFiltersAndSort();
-        }
-
-        document.addEventListener('DOMContentLoaded', generateReport);
-    </script>
+    document.addEventListener('DOMContentLoaded', generateReport);
+  </script>
 </body>
 </html>
