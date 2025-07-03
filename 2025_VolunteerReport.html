@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Volunteer Requirement Report - Families</title>
   <style>
     body {
@@ -49,7 +49,7 @@
       display: block;
       margin-bottom: 6px;
     }
-    select, input[type="text"] {
+    select {
       padding: 3px 6px;
       font-size: 0.7em;
       border-radius: 4px;
@@ -81,12 +81,27 @@
       white-space: nowrap;
       color: #0156B3;
     }
+    th.sortable::after {
+      content: ' \21C5';
+      font-size: 0.68em;
+      color: #666;
+      margin-left: 5px;
+    }
+    th.sortable.asc::after {
+      content: ' \25B2';
+      color: #0156B3;
+    }
+    th.sortable.desc::after {
+      content: ' \25BC';
+      color: #0156B3;
+    }
     tbody tr:nth-child(even) { background-color: #fdfdfd; }
     tbody tr:nth-child(odd) { background-color: #ffffff; }
     tbody tr:hover { background-color: #eaf6ff; }
     .met-yes { font-weight: bold; color: #28a745; }
     .met-no { font-weight: bold; color: #dc3545; }
     .met-na { color: #6c757d; font-style: italic; }
+    .error { color: red; text-align: center; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -127,10 +142,10 @@
       return `${parts[1]} ${parts[2]}`;
     }
 
-    function extractLastName(name) {
+    function getLastNameFromCommaFormat(name) {
       if (!name) return "";
-      const parts = name.trim().split(" ");
-      return parts.length > 1 ? parts.at(-1) : parts[0];
+      const parts = name.split(',');
+      return parts[0].trim();
     }
 
     async function loadJsonData(url) {
@@ -140,10 +155,12 @@
       return raw.values.map(row => Object.fromEntries(raw.fields.map((k, i) => [k, row[i]])));
     }
 
-    async function generateFamilyReport() {
+    document.addEventListener('DOMContentLoaded', async () => {
       const container = document.getElementById('report-container');
       let familyFilter = "";
       let complianceFilter = "";
+      let currentSortKey = "Meet";
+      let currentSortDirection = "asc";
 
       try {
         const [swimmers, volunteers] = await Promise.all([
@@ -152,113 +169,63 @@
         ]);
 
         const reportMap = new Map();
-        const volunteerLastNameMap = {};
-        const parentExpansionMap = {};
-
-        volunteers.forEach(v => {
-          const fullName = v["Parent"]?.trim();
-          const lastName = v["Parent Last Name"]?.trim();
-          if (fullName && lastName) {
-            volunteerLastNameMap[fullName] = lastName;
-            if (!parentExpansionMap[fullName]) parentExpansionMap[fullName] = new Set();
-            parentExpansionMap[fullName].add(fullName);
-          }
-        });
-
-        swimmers.forEach(s => {
-          const parentString = s["Associated Parents For Swimmer"];
-          const parentLastName = s["Parent Last Name"];
-          if (parentString && parentLastName) {
-            const parents = parentString.split(';').map(p => p.trim()).filter(Boolean);
-            parents.forEach(p => {
-              if (!parentExpansionMap[p]) parentExpansionMap[p] = new Set();
-              parents.forEach(other => parentExpansionMap[p].add(other));
-              if (!volunteerLastNameMap[p]) volunteerLastNameMap[p] = parentLastName;
-            });
-          }
-        });
-
         const families = new Set();
 
-        for (const row of swimmers) {
-          const meetDate = row["Meet Date"];
-          const meetName = row["Meet Name"];
+        swimmers.forEach(row => {
+          const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
           const swimmer = row["Swimmer Name"];
-          const parents = row["Associated Parents For Swimmer"];
-          if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
-
-          const parentSet = new Set();
-          parents.split(';').forEach(p => {
-            if (parentExpansionMap[p.trim()]) {
-              parentExpansionMap[p.trim()].forEach(fam => parentSet.add(fam));
-            } else {
-              parentSet.add(p.trim());
-            }
-          });
-
-          const parentSetKey = Array.from(parentSet).sort().join('|');
-          const firstParent = parentSetKey.split('|')[0];
-          const parentLastName = volunteerLastNameMap[firstParent] || extractLastName(firstParent);
-          const familyName = `${parentLastName} Family`;
-          const key = `${meetDate}|${meetName}|${parentSetKey}`;
-
-          families.add(familyName);
+          const parents = row["Associated Parents For Swimmer"] || "";
+          const parentLastNames = parents.split(';').map(p => getLastNameFromCommaFormat(p.trim()));
+          const familyName = parentLastNames[0] ? `${parentLastNames[0]} Family` : "Unknown Family";
+          const key = `${meetKey}|${familyName}`;
 
           if (!reportMap.has(key)) {
             reportMap.set(key, {
-              "Meet Date": meetDate,
-              "Meet Name": meetName,
+              "Meet Date": row["Meet Date"],
+              "Meet Name": row["Meet Name"],
               "Family": familyName,
-              "Parents": new Set(parentSet),
+              "Parents": new Set(parents.split(';').map(p => p.trim())),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
               "Volunteered": false
             });
           }
+
           const entry = reportMap.get(key);
           entry.Swimmers.add(swimmer);
           entry.Competed = true;
-        }
-
-        for (const row of volunteers) {
-          const meetDate = row["Meet Date"];
-          const meetName = row["Meet Name"];
-          const parent = row["Parent"]?.trim();
-          const job = row["Job"]?.trim();
-          if (!meetDate || !meetName || !parent || !job) continue;
-
-          const parentSet = new Set();
-          if (parentExpansionMap[parent]) {
-            parentExpansionMap[parent].forEach(fam => parentSet.add(fam));
-          } else {
-            parentSet.add(parent);
-          }
-          const parentSetKey = Array.from(parentSet).sort().join('|');
-          const firstParent = parentSetKey.split('|')[0];
-          const parentLastName = volunteerLastNameMap[firstParent] || extractLastName(firstParent);
-          const familyName = `${parentLastName} Family`;
-          const key = `${meetDate}|${meetName}|${parentSetKey}`;
-
           families.add(familyName);
+        });
+
+        volunteers.forEach(row => {
+          const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
+          const parent = row["Parent"];
+          const swimmers = [row["Swimmer 1"], row["Swimmer 2"], row["Swimmer 3"], row["Swimmer 4"], row["Swimmer 5"], row["Swimmer 6"], row["Swimmer 7"], row["Swimmer 8"], row["Swimmer 9"]].filter(Boolean);
+          const parentLastName = getLastNameFromCommaFormat(parent);
+          const familyName = parentLastName ? `${parentLastName} Family` : "Unknown Family";
+          const key = `${meetKey}|${familyName}`;
 
           if (!reportMap.has(key)) {
             reportMap.set(key, {
-              "Meet Date": meetDate,
-              "Meet Name": meetName,
+              "Meet Date": row["Meet Date"],
+              "Meet Name": row["Meet Name"],
               "Family": familyName,
-              "Parents": new Set(parentSet),
+              "Parents": new Set(),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
               "Volunteered": false
             });
           }
+
           const entry = reportMap.get(key);
           entry.Parents.add(parent);
-          entry.Jobs.add(job);
+          swimmers.forEach(s => entry.Swimmers.add(s));
+          if (row["Job"]) entry.Jobs.add(row["Job"]);
           entry.Volunteered = true;
-        }
+          families.add(familyName);
+        });
 
         const allRows = Array.from(reportMap.values()).map(entry => {
           const met = entry.Competed ? (entry.Volunteered ? "YES" : "NO") : "N/A";
@@ -292,22 +259,27 @@
         });
 
         function renderTable() {
-          const rows = allRows.filter(row => {
-            const matchesFamily = !familyFilter || row.family === familyFilter;
-            const matchesCompliance = !complianceFilter || row.met === complianceFilter;
-            return matchesFamily && matchesCompliance;
+          let rows = [...allRows];
+
+          if (familyFilter) rows = rows.filter(row => row.family === familyFilter);
+          if (complianceFilter) rows = rows.filter(row => row.met === complianceFilter);
+
+          rows.sort((a, b) => {
+            const valA = a[currentSortKey] || "";
+            const valB = b[currentSortKey] || "";
+            return currentSortDirection === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
           });
 
           const table = document.createElement('table');
           table.innerHTML = `<thead><tr>
-            <th>Meet</th>
-            <th>Family</th>
-            <th>Swimmer(s)</th>
-            <th>Parent(s)</th>
-            <th>Job(s)</th>
-            <th>Competed?</th>
-            <th>Volunteered?</th>
-            <th>Compliant?</th>
+            <th class="sortable" data-key="meet">Meet</th>
+            <th class="sortable" data-key="family">Family</th>
+            <th class="sortable" data-key="swimmers">Swimmer(s)</th>
+            <th class="sortable" data-key="parents">Parent(s)</th>
+            <th class="sortable" data-key="jobs">Job(s)</th>
+            <th class="sortable" data-key="competed">Competed?</th>
+            <th class="sortable" data-key="volunteered">Volunteered?</th>
+            <th class="sortable" data-key="met">Compliant?</th>
           </tr></thead><tbody>
             ${rows.map(row => `
               <tr>
@@ -324,15 +296,28 @@
 
           container.innerHTML = '';
           container.appendChild(table);
+
+          document.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('asc', 'desc');
+            if (th.dataset.key === currentSortKey) th.classList.add(currentSortDirection);
+            th.onclick = () => {
+              const key = th.dataset.key;
+              if (currentSortKey === key) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+              } else {
+                currentSortKey = key;
+                currentSortDirection = 'asc';
+              }
+              renderTable();
+            };
+          });
         }
 
         renderTable();
       } catch (error) {
         container.innerHTML = `<p class="error">Error loading data: ${error.message}</p>`;
       }
-    }
-
-    document.addEventListener('DOMContentLoaded', generateFamilyReport);
+    });
   </script>
 </body>
 </html>
