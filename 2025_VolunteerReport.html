@@ -86,11 +86,11 @@
     .met-yes { font-weight: bold; color: #28a745; text-align: center; }
     .met-no { font-weight: bold; color: #dc3545; text-align: center; }
 
-    th:nth-child(1), td:nth-child(1) { width: 25%; } /* Meet */
-    th:nth-child(2), td:nth-child(2) { width: 13%; } /* Family */
-    th:nth-child(3), td:nth-child(3) { width: 20%; } /* Swimmers */
-    th:nth-child(4), td:nth-child(4) { width: 20%; } /* Parents */
-    th:nth-child(5), td:nth-child(5) { width: 12%; } /* Jobs */
+    th:nth-child(1), td:nth-child(1) { width: 25%; }
+    th:nth-child(2), td:nth-child(2) { width: 13%; }
+    th:nth-child(3), td:nth-child(3) { width: 20%; }
+    th:nth-child(4), td:nth-child(4) { width: 20%; }
+    th:nth-child(5), td:nth-child(5) { width: 12%; }
     th:nth-child(6), td:nth-child(6),
     th:nth-child(7), td:nth-child(7),
     th:nth-child(8), td:nth-child(8) {
@@ -121,26 +121,23 @@
     const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
     const VOLUNTEER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
 
-    let currentFilterFamily = "";
-    let currentFilterFamilySearch = "";
+    const swimmerFields = [
+      "Meet Date", "Meet Name", "Parent", "Job", "Assignment",
+      "Count of Events With Results",
+      "Swimmer 1", "Swimmer 2", "Swimmer 3", "Swimmer 4",
+      "Swimmer 5", "Swimmer 6", "Swimmer 7", "Swimmer 8", "Swimmer 9"
+    ];
 
-    function formatMeetDate(dateString) {
-      if (!dateString || typeof dateString !== 'string') return "N/A";
-      const [year, month, day] = dateString.split("-");
-      return `${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-
-    function normalizeName(name) {
-      return name.trim().toLowerCase();
-    }
+    const volunteerFields = [
+      "Meet Date", "Meet Name", "Swimmer Name",
+      "Count of Events With Results", "Volunteer Count",
+      "Associated Parents For Swimmer"
+    ];
 
     function extractFirstName(fullName) {
       if (!fullName) return "";
       const parts = fullName.split(",");
-      if (parts.length === 2) {
-        return parts[1].trim().split(" ")[0];
-      }
-      return fullName.trim().split(" ")[0];
+      return parts.length === 2 ? parts[1].trim().split(" ")[0] : fullName.trim().split(" ")[0];
     }
 
     function extractLastName(name) {
@@ -152,11 +149,11 @@
       return parts.length > 1 ? parts.at(-1) : parts[0];
     }
 
-    async function loadJsonData(url) {
+    async function loadJsonData(url, fields) {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Failed to load ${url}`);
       const raw = await res.json();
-      return raw.values.map(row => Object.fromEntries(raw.fields.map((k, i) => [k, row[i]])));
+      return raw.values.map(row => Object.fromEntries(fields.map((key, i) => [key, row[i]])));
     }
 
     function updateFamilyDropdown(options) {
@@ -172,27 +169,19 @@
 
     function applyFiltersAndRender(dataRows) {
       let filtered = dataRows;
-
       if (currentFilterFamily) {
         filtered = filtered.filter(row => row.family === currentFilterFamily);
       }
       if (currentFilterFamilySearch) {
         filtered = filtered.filter(row => row.family.toLowerCase().includes(currentFilterFamilySearch));
       }
-
       filtered.sort((a, b) => a.meet.localeCompare(b.meet));
 
       const container = document.getElementById('report-container');
       const table = document.createElement('table');
       table.innerHTML = `<thead><tr>
-        <th>Meet</th>
-        <th>Family</th>
-        <th>Swimmer(s)</th>
-        <th>Parent(s)</th>
-        <th>Job(s)</th>
-        <th>Swam?</th>
-        <th>Worked?</th>
-        <th>Met?</th>
+        <th>Meet</th><th>Family</th><th>Swimmer(s)</th><th>Parent(s)</th>
+        <th>Job(s)</th><th>Swam?</th><th>Worked?</th><th>Met?</th>
       </tr></thead><tbody>
         ${filtered.map(row => `
           <tr>
@@ -210,94 +199,85 @@
       container.appendChild(table);
     }
 
+    let currentFilterFamily = "";
+    let currentFilterFamilySearch = "";
+
     async function generateFamilyReport() {
       const container = document.getElementById('report-container');
-
       try {
-        const [swimmers, volunteers] = await Promise.all([
-          loadJsonData(SWIMMER_DATA_URL),
-          loadJsonData(VOLUNTEER_DATA_URL)
+        const [swimmersRaw, volunteersRaw] = await Promise.all([
+          loadJsonData(SWIMMER_DATA_URL, swimmerFields),
+          loadJsonData(VOLUNTEER_DATA_URL, volunteerFields)
         ]);
 
         const reportMap = new Map();
 
-        for (const row of swimmers) {
+        for (const row of swimmersRaw) {
           const meetDate = row["Meet Date"];
           const meetName = row["Meet Name"];
-          const swimmer = row["Swimmer Name"];
-          const parents = row["Associated Parents For Swimmer"];
-          if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
+          const parent = row["Parent"];
+          const swimmerNames = swimmerFields
+            .filter(f => f.startsWith("Swimmer"))
+            .map(field => row[field])
+            .filter(Boolean);
+          const competed = parseInt(row["Count of Events With Results"]) > 0;
 
-          const parentSet = new Set(parents.split(';').map(p => p.trim()));
-          const normalizedParentSet = new Set(Array.from(parentSet).map(normalizeName));
-          const parentSetKey = Array.from(normalizedParentSet).sort().join('|');
-          const primaryParent = Array.from(normalizedParentSet)[0];
-          const parentLastName = extractLastName(primaryParent);
+          if (!meetDate || !meetName || !parent || swimmerNames.length === 0 || !competed) continue;
+
+          const parentLastName = extractLastName(parent);
           const familyName = parentLastName;
-          const key = `${meetDate}|${meetName}|${parentSetKey}`;
+          const key = `${meetDate}|${meetName}|${parent}`;
 
           if (!reportMap.has(key)) {
             reportMap.set(key, {
               "Meet Date": meetDate,
               "Meet Name": meetName,
               "Family": familyName,
-              "Parents": new Set(parentSet),
-              "Swimmers": new Set(),
-              "Jobs": new Set(),
-              "Competed": false,
-              "Volunteered": false,
-              _normalizedParents: normalizedParentSet
-            });
-          }
-          const entry = reportMap.get(key);
-          entry.Swimmers.add(swimmer);
-          entry.Competed = true;
-        }
-
-        for (const row of volunteers) {
-          const meetDate = row["Meet Date"];
-          const meetName = row["Meet Name"];
-          const parent = row["Parent"];
-          const job = row["Job"];
-          if (!meetDate || !meetName || !parent || !job) continue;
-
-          const normalizedParent = normalizeName(parent);
-          let key = null;
-
-          for (const [k, entry] of reportMap.entries()) {
-            if (k.startsWith(`${meetDate}|${meetName}`) && entry._normalizedParents.has(normalizedParent)) {
-              key = k;
-              break;
-            }
-          }
-
-          if (!key) {
-            key = `${meetDate}|${meetName}|${normalizedParent}`;
-            reportMap.set(key, {
-              "Meet Date": meetDate,
-              "Meet Name": meetName,
-              "Family": extractLastName(parent),
               "Parents": new Set([parent]),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
-              "Volunteered": false,
-              _normalizedParents: new Set([normalizedParent])
+              "Volunteered": false
             });
           }
-
           const entry = reportMap.get(key);
-          entry.Parents.add(parent);
-          entry.Jobs.add(job);
-          entry.Volunteered = true;
+          swimmerNames.forEach(sw => entry.Swimmers.add(sw));
+          entry.Competed = true;
+        }
+
+        for (const row of volunteersRaw) {
+          const meetDate = row["Meet Date"];
+          const meetName = row["Meet Name"];
+          const parents = row["Associated Parents For Swimmer"];
+          if (!meetDate || !meetName || !parents) continue;
+
+          const parentList = parents.split(";").map(p => p.trim()).filter(Boolean);
+          parentList.forEach(parent => {
+            const key = `${meetDate}|${meetName}|${parent}`;
+            if (!reportMap.has(key)) {
+              reportMap.set(key, {
+                "Meet Date": meetDate,
+                "Meet Name": meetName,
+                "Family": extractLastName(parent),
+                "Parents": new Set([parent]),
+                "Swimmers": new Set(),
+                "Jobs": new Set(),
+                "Competed": false,
+                "Volunteered": false
+              });
+            }
+            const entry = reportMap.get(key);
+            entry.Parents.add(parent);
+            entry.Volunteered = true;
+          });
         }
 
         const allRows = Array.from(reportMap.values()).map(entry => {
           const met = entry.Competed ? (entry.Volunteered ? "YES" : "NO") : "N/A";
           return {
-            meet: `${formatMeetDate(entry["Meet Date"])} - ${entry["Meet Name"]}`,
+            meet: `${entry["Meet Date"].slice(5)} - ${entry["Meet Name"]}`,
             family: entry.Family,
-            swimmers: Array.from(entry.Swimmers).map(extractFirstName).join(", "),
+            swimmers: Array.from(entry.Swimmers).map(extractFirstName).join(", ") || "-",
             parents: Array.from(entry.Parents).map(extractFirstName).join(", "),
             jobs: Array.from(entry.Jobs).join(", ") || "-",
             competed: entry.Competed ? "YES" : "NO",
@@ -306,22 +286,22 @@
           };
         });
 
-        const familyNames = [...new Set(allRows.map(row => row.family))];
-        updateFamilyDropdown(familyNames);
+        updateFamilyDropdown([...new Set(allRows.map(r => r.family))]);
         applyFiltersAndRender(allRows);
 
-        document.getElementById('familyNameFilterSelect').addEventListener('change', (e) => {
+        document.getElementById('familyNameFilterSelect').addEventListener('change', e => {
           currentFilterFamily = e.target.value;
           applyFiltersAndRender(allRows);
         });
 
-        document.getElementById('familySearchInput').addEventListener('input', (e) => {
+        document.getElementById('familySearchInput').addEventListener('input', e => {
           currentFilterFamilySearch = e.target.value.toLowerCase();
           applyFiltersAndRender(allRows);
         });
 
       } catch (error) {
         container.innerHTML = `<p class="error">Error loading data: ${error.message}</p>`;
+        console.error(error);
       }
     }
 
