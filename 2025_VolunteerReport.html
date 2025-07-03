@@ -242,170 +242,125 @@
       });
     }
 
-    function applyFiltersAndSort() {
-      let filteredRows = [...allReportRows];
-
-      if (currentFilterParentName) {
-        const names = currentFilterParentName.split('; ').map(n => n.trim());
-        filteredRows = filteredRows.filter(row => {
-          const parents = row._allParentNamesForFilter || [];
-          return names.some(name => parents.includes(name));
-        });
-      }
-
-      if (currentFilterMetRequirement) {
-        filteredRows = filteredRows.filter(row => {
-          const val = row["Met Requirement"] || "";
-          return currentFilterMetRequirement === "YES" ? val === "YES" :
-                 currentFilterMetRequirement === "NO" ? val.startsWith("NO") :
-                 currentFilterMetRequirement === "N/A" ? val.startsWith("N/A") : false;
-        });
-      }
-
-      filteredRows.sort((a, b) => {
-        let valA = a[currentSortKey], valB = b[currentSortKey];
-        if (currentSortKey === "Meet Date") {
-          return currentSortDirection === "asc"
-            ? new Date(valA) - new Date(valB)
-            : new Date(valB) - new Date(valA);
-        }
-        return currentSortDirection === "asc"
-          ? String(valA).localeCompare(String(valB))
-          : String(valB).localeCompare(String(valA));
-      });
-
-      renderTableBody(filteredRows);
-      updateSummaryDisplay(filteredRows);
-    }
-
-    function updateSummaryDisplay(displayedRows) {
-      const swumSet = new Set();
-      const volunteeredSet = new Set();
-
-      displayedRows.forEach(row => {
-        const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
-        if (row["Competed YES/NO"] === "YES") {
-          row["Swimmer Name"].split(', ').forEach(name => swumSet.add(`${meetKey}|${name}`));
-        }
-        if (row.Job && row.Job !== "N/A") {
-          (row._allParentNamesForFilter || []).forEach(p => volunteeredSet.add(`${meetKey}|${p}`));
-        }
-      });
-
-      document.getElementById('total-meets-swum').textContent = swumSet.size;
-      document.getElementById('total-meets-volunteered').textContent = volunteeredSet.size;
-      document.getElementById('summary-context-label').textContent = currentFilterParentName ? `Parent: ${currentFilterParentName}` : "All Parents";
-    }
-
-    function initSorting() {
-      document.querySelectorAll('th[data-sort-key]').forEach(th => {
-        th.classList.add('sortable');
-        th.addEventListener('click', () => {
-          const key = th.getAttribute('data-sort-key');
-          if (currentSortKey === key) {
-            currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
-          } else {
-            currentSortKey = key;
-            currentSortDirection = "asc";
-          }
-          document.querySelectorAll('th[data-sort-key]').forEach(h => h.classList.remove('asc', 'desc'));
-          th.classList.add(currentSortDirection);
-          applyFiltersAndSort();
-        });
-      });
-    }
-
-    function populateParentFilterDropdown(volData, swimData) {
-      const dropdown = document.getElementById('parentNameFilterSelect');
-      const parents = new Set();
-      volData.forEach(r => r.Parent && parents.add(r.Parent));
-      swimData.forEach(r => (r["Associated Parents For Swimmer"] || "").split('; ').forEach(p => parents.add(p.trim())));
-      dropdown.innerHTML = '<option value="">All Parents</option>' + [...parents].sort().map(p => `<option value="${p}">${p}</option>`).join('');
-      dropdown.addEventListener('change', e => {
-        currentFilterParentName = e.target.value;
-        applyFiltersAndSort();
-      });
-    }
-
-    function initMetRequirementFilter() {
-      document.getElementById('metRequirementFilterSelect').addEventListener('change', e => {
-        currentFilterMetRequirement = e.target.value;
-        applyFiltersAndSort();
-      });
-    }
-
     async function generateReport() {
       const container = document.getElementById('report-container');
       container.innerHTML = '<p class="loading-message">Processing data...</p>';
-      let swimmers = [], volunteers = [];
+      let swimmersCompeting = [];
+      let parentVolunteers = [];
+
       try {
-        [swimmers, volunteers] = await Promise.all([
-          loadJsonData(SWIMMER_DATA_URL),
-          loadJsonData(PARENT_DATA_URL)
-        ]);
-      } catch (e) {
-        container.innerHTML = `<p class="error">Failed to load data: ${e.message}</p>`;
+        swimmersCompeting = await loadJsonData(SWIMMER_DATA_URL);
+        parentVolunteers = await loadJsonData(PARENT_DATA_URL);
+      } catch (error) {
+        container.innerHTML = `<p class="error">Failed to load data: ${error.message}</p>`;
         return;
       }
 
-      const competedMap = {};
-      swimmers.forEach(row => {
-        if (!row["Count of Events With Results"]) return;
-        const {"Meet Date": date, "Meet Name": name, "Swimmer Name": swimmer, "Associated Parents For Swimmer": parents} = row;
-        competedMap[`${date}|${name}|${swimmer}`] = parents;
+      const competedSwimmersByMeet = {};
+      swimmersCompeting.forEach(row => {
+        const meetDate = row["Meet Date"];
+        const meetName = row["Meet Name"];
+        const swimmerName = row["Swimmer Name"];
+        const countResults = row["Count of Events With Results"] || 0;
+        const associatedParents = row["Associated Parents For Swimmer"];
+
+        if (meetName && meetDate && swimmerName && countResults > 0) {
+          if (!(meetName in competedSwimmersByMeet)) competedSwimmersByMeet[meetName] = {};
+          if (!(meetDate in competedSwimmersByMeet[meetName])) competedSwimmersByMeet[meetName][meetDate] = {};
+          competedSwimmersByMeet[meetName][meetDate][swimmerName] = associatedParents;
+        }
       });
 
-      const rows = [];
-      const seenJobs = new Set();
-      const seenSwims = new Set();
+      const tempReportRows = [];
+      const processedParentJobCombos = new Set();
+      const processedSwimmerMeetCombos = new Set();
 
-      volunteers.forEach(row => {
-        const {"Meet Date": date, "Meet Name": name, Parent: parent, Job: job, Shift: shift, Points: points} = row;
-        const swimmers = Array.from({ length: 9 }, (_, i) => row[`Swimmer ${i + 1}`]).filter(Boolean);
-        const key = `${date}|${name}|${parent}|${job}|${shift}|${points}`;
-        if (seenJobs.has(key)) return;
-        seenJobs.add(key);
-        let competed = "NO";
-        for (const s of swimmers) {
-          if (competedMap[`${date}|${name}|${s}`]) {
-            competed = "YES";
-            seenSwims.add(`${date}|${name}|${s}`);
+      parentVolunteers.forEach(row => {
+        const meetDate = row["Meet Date"];
+        const meetName = row["Meet Name"];
+        const parentName = row.Parent;
+        const job = row.Job;
+        const shift = row.Shift;
+        const points = row.Points;
+        const parentJobId = `${meetDate}|${meetName}|${parentName}|${job}|${shift}|${points}`;
+
+        if (processedParentJobCombos.has(parentJobId)) return;
+        processedParentJobCombos.add(parentJobId);
+
+        const associatedSwimmersList = [];
+        for (let i = 1; i <= 9; i++) {
+          const swimmerCol = row[`Swimmer ${i}`];
+          if (swimmerCol) associatedSwimmersList.push(swimmerCol);
+        }
+
+        let competedStatus = "NO";
+        for (const swimmer of associatedSwimmersList) {
+          if (meetName in competedSwimmersByMeet &&
+              meetDate in competedSwimmersByMeet[meetName] &&
+              swimmer in competedSwimmersByMeet[meetName][meetDate]) {
+            competedStatus = "YES";
+            processedSwimmerMeetCombos.add(`${meetDate}|${meetName}|${swimmer}`);
           }
         }
-        rows.push({
-          "Meet Date": date, "Meet Name": name, "Swimmer Name": swimmers.join(", ") || "N/A",
-          "Competed YES/NO": competed, "Parent Name": parent, Job: job, Shift: shift, Points: points,
-          "Met Requirement": competed === "YES" ? "YES" : "N/A",
-          _allParentNamesForFilter: [parent]
+
+        const metRequirement = (competedStatus === "YES") ? "YES" : "N/A";
+
+        tempReportRows.push({
+          "Meet Date": meetDate,
+          "Meet Name": meetName,
+          "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
+          "Competed YES/NO": competedStatus,
+          "Parent Name": parentName,
+          "Job": job,
+          "Shift": shift,
+          "Points": points,
+          "Met Requirement": metRequirement,
+          _allParentNamesForFilter: [parentName].filter(name => name !== "N/A (No Volunteer)")
         });
       });
 
-      Object.entries(competedMap).forEach(([key, parents]) => {
-        if (!seenSwims.has(key)) {
-          const [date, name, swimmer] = key.split('|');
-          rows.push({
-            "Meet Date": date, "Meet Name": name, "Swimmer Name": swimmer, "Competed YES/NO": "YES",
-            "Parent Name": parents, Job: "N/A", Shift: "N/A", Points: "N/A", "Met Requirement": "NO",
-            _allParentNamesForFilter: parents.split('; ').map(p => p.trim())
-          });
+      for (const meetName in competedSwimmersByMeet) {
+        for (const meetDate in competedSwimmersByMeet[meetName]) {
+          for (const swimmerName in competedSwimmersByMeet[meetName][meetDate]) {
+            const swimmerParents = competedSwimmersByMeet[meetName][meetDate][swimmerName];
+            if (!processedSwimmerMeetCombos.has(`${meetDate}|${meetName}|${swimmerName}`)) {
+              tempReportRows.push({
+                "Meet Date": meetDate,
+                "Meet Name": meetName,
+                "Swimmer Name": swimmerName,
+                "Competed YES/NO": "YES",
+                "Parent Name": swimmerParents,
+                "Job": "N/A",
+                "Shift": "N/A",
+                "Points": "N/A",
+                "Met Requirement": "NO",
+                _allParentNamesForFilter: swimmerParents.split('; ').map(name => name.trim()).filter(name => name !== "No Parent Linked")
+              });
+            }
+          }
         }
-      });
+      }
 
-      allReportRows = rows;
-      container.innerHTML = `<table><thead><tr>
-        <th data-sort-key="Meet Date">Meet</th>
-        <th data-sort-key="Swimmer Name">Swimmer(s)</th>
-        <th data-sort-key="Competed YES/NO">Competed?</th>
-        <th data-sort-key="Parent Name">Parent Name</th>
-        <th data-sort-key="Job">Job</th>
-        <th data-sort-key="Shift">Shift</th>
-        <th data-sort-key="Points">Points</th>
-        <th data-sort-key="Met Requirement">Compliant?</th>
-      </tr></thead><tbody></tbody></table>`;
+      allReportRows = tempReportRows;
 
-      populateParentFilterDropdown(volunteers, swimmers);
-      initMetRequirementFilter();
-      initSorting();
+      const tableHtml = `
+        <table>
+          <thead>
+            <tr>
+              <th data-sort-key="Meet Date">Meet</th>
+              <th data-sort-key="Swimmer Name">Swimmer(s)</th>
+              <th data-sort-key="Competed YES/NO">Competed?</th>
+              <th data-sort-key="Parent Name">Parent Name</th>
+              <th data-sort-key="Job">Job</th>
+              <th data-sort-key="Shift">Shift</th>
+              <th data-sort-key="Points">Points</th>
+              <th data-sort-key="Met Requirement">Compliant?</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>`;
+
+      container.innerHTML = tableHtml;
       applyFiltersAndSort();
     }
 
