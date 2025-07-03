@@ -195,10 +195,12 @@
     let currentFilterParentName = "";
     let currentFilterMetRequirement = "";
 
-    function formatMeetDate(dateString) {
-      const date = new Date(dateString);
-      if (isNaN(date)) return "N/A";
-      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+     function formatMeetDate(dateString) {
+  const date = new Date(dateString);
+  if (isNaN(date)) return "N/A";
+  const parts = date.toDateString().split(" ");
+  return `${parts[1]} ${parts[2]}`; // e.g., "Jun 10"
+});
     }
 
     function parseDataclipJson(data) {
