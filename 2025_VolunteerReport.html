@@ -286,7 +286,7 @@
           }
 
           const entry = reportMap.get(key);
-          entry.Parents.add(parent);
+          entry.Parents.add(extractFirstName(parent));
           entry.Jobs.add(job);
           entry.Volunteered = true;
         }
