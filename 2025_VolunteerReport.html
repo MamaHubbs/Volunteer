@@ -127,7 +127,7 @@
     function formatMeetDate(dateString) {
       if (!dateString || typeof dateString !== 'string') return "N/A";
       const [year, month, day] = dateString.split("-");
-      return `${month.padStart(2, '0')} - ${day.padStart(2, '0')}`;
+      return `${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
 
 function extractFirstName(fullName) {
