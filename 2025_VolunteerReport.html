@@ -198,7 +198,7 @@
     function formatMeetDate(dateString) {
       const date = new Date(dateString);
       if (isNaN(date)) return "N/A";
-      return date.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
 
     function parseDataclipJson(data) {
