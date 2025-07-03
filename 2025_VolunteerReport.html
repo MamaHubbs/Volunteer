@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Volunteer Requirement Report - Families</title>
   <style>
-    /* BASE STYLES FROM USER'S WEBSITE */
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
@@ -29,6 +28,32 @@
       text-align: center;
       color: #555;
       line-height: 1.5;
+    }
+    .dropdown-container {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 0.7em;
+      position: sticky;
+      top: 0;
+      background-color: #f8f8f8;
+      padding: 10px 0;
+      z-index: 1000;
+      border-bottom: 1px solid #ccc;
+    }
+    .dropdown-box {
+      display: inline-block;
+      margin: 0 4px;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 6px;
+    }
+    select, input[type="text"] {
+      padding: 3px 6px;
+      font-size: 0.7em;
+      border-radius: 4px;
+      border: 1px solid #ccc;
     }
     table {
       table-layout: fixed;
@@ -61,17 +86,39 @@
     tbody tr:hover { background-color: #eaf6ff; }
     .met-yes { font-weight: bold; color: #28a745; }
     .met-no { font-weight: bold; color: #dc3545; }
+    .met-na { color: #6c757d; font-style: italic; }
   </style>
 </head>
 <body>
   <div class="main-content-wrapper">
     <h1>Volunteer Requirement Report (by Family)</h1>
-    <p>Each row represents a family's participation and volunteer status for a given meet.</p>
-    <div id="report-container">Loading...</div>
+    <p>This report summarizes each family's swimmer and volunteer participation per meet.<br>
+    If a family had a swimmer compete, they should have had a parent volunteer.</p>
+
+    <div class="dropdown-container">
+      <div class="dropdown-box">
+        <label for="familyFilterSelect">Family Name:</label>
+        <select id="familyFilterSelect">
+          <option value="">All Families</option>
+        </select>
+      </div>
+      <div class="dropdown-box">
+        <label for="complianceFilterSelect">Compliance:</label>
+        <select id="complianceFilterSelect">
+          <option value="">All Statuses</option>
+          <option value="YES">Met (YES)</option>
+          <option value="NO">Not Met (NO)</option>
+          <option value="N/A">N/A</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="report-container">Loading report data...</div>
   </div>
+
   <script>
-    const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
-    const VOLUNTEER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
+    const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/main/2025_swimmerdata.json';
+    const VOLUNTEER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/main/2025_volunteerdata.json';
 
     function formatMeetDate(dateString) {
       const date = new Date(dateString);
@@ -81,10 +128,10 @@
     }
 
     function extractLastName(name) {
-  if (!name) return "";
-  const parts = name.trim().split(" ");
-  return parts.length > 1 ? parts.at(-1) : parts[0];
-}
+      if (!name) return "";
+      const parts = name.trim().split(" ");
+      return parts.length > 1 ? parts.at(-1) : parts[0];
+    }
 
     async function loadJsonData(url) {
       const res = await fetch(url);
@@ -95,6 +142,8 @@
 
     async function generateFamilyReport() {
       const container = document.getElementById('report-container');
+      let familyFilter = "";
+      let complianceFilter = "";
 
       try {
         const [swimmers, volunteers] = await Promise.all([
@@ -103,11 +152,9 @@
         ]);
 
         const reportMap = new Map();
-
         const volunteerLastNameMap = {};
         const parentExpansionMap = {};
 
-        // Build last name map and parent expansion map from volunteers
         volunteers.forEach(v => {
           const fullName = v["Parent"]?.trim();
           const lastName = v["Parent Last Name"]?.trim();
@@ -118,68 +165,51 @@
           }
         });
 
-        // Expand parent-to-family mapping from swimmer data
-        swimmers.forEach(s => {
-          const parentString = s["Associated Parents For Swimmer"];
-          if (parentString) {
-            const parents = parentString.split(';').map(p => p.trim()).filter(Boolean);
-            parents.forEach(p => {
-              if (!parentExpansionMap[p]) parentExpansionMap[p] = new Set();
-              parents.forEach(other => parentExpansionMap[p].add(other));
-            });
-          }
-        });
-        volunteers.forEach(v => {
-          if (v["Parent"] && v["Parent Last Name"]) {
-            volunteerLastNameMap[v["Parent"].trim()] = v["Parent Last Name"].trim();
-          }
-        });
         swimmers.forEach(s => {
           const parentString = s["Associated Parents For Swimmer"];
           const parentLastName = s["Parent Last Name"];
           if (parentString && parentLastName) {
-            parentString.split(';').forEach(p => {
-              const name = p.trim();
-              if (name && !volunteerLastNameMap[name]) {
-                volunteerLastNameMap[name] = parentLastName.trim();
-              }
+            const parents = parentString.split(';').map(p => p.trim()).filter(Boolean);
+            parents.forEach(p => {
+              if (!parentExpansionMap[p]) parentExpansionMap[p] = new Set();
+              parents.forEach(other => parentExpansionMap[p].add(other));
+              if (!volunteerLastNameMap[p]) volunteerLastNameMap[p] = parentLastName;
             });
           }
         });
-        volunteers.forEach(v => {
-          if (v["Parent"] && v["Parent Last Name"]) {
-            volunteerLastNameMap[v["Parent"].trim()] = v["Parent Last Name"].trim();
-          }
-        });
 
-        // Step 1: process swimmers to identify families who had swimmers at each meet
+        const families = new Set();
+
         for (const row of swimmers) {
           const meetDate = row["Meet Date"];
           const meetName = row["Meet Name"];
           const swimmer = row["Swimmer Name"];
           const parents = row["Associated Parents For Swimmer"];
           if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
+
           const parentSet = new Set();
-          const allParents = (Array.isArray(parents) ? parents : parents.split(';')).map(p => p.trim()).filter(Boolean);
-          allParents.forEach(p => {
-            if (parentExpansionMap[p]) {
-              parentExpansionMap[p].forEach(fam => parentSet.add(fam));
+          parents.split(';').forEach(p => {
+            if (parentExpansionMap[p.trim()]) {
+              parentExpansionMap[p.trim()].forEach(fam => parentSet.add(fam));
             } else {
-              parentSet.add(p);
+              parentSet.add(p.trim());
             }
-          });').forEach(p => parentSet.add(p.trim()));
-          }
+          });
+
           const parentSetKey = Array.from(parentSet).sort().join('|');
           const firstParent = parentSetKey.split('|')[0];
           const parentLastName = volunteerLastNameMap[firstParent] || extractLastName(firstParent);
           const familyName = `${parentLastName} Family`;
           const key = `${meetDate}|${meetName}|${parentSetKey}`;
+
+          families.add(familyName);
+
           if (!reportMap.has(key)) {
             reportMap.set(key, {
               "Meet Date": meetDate,
               "Meet Name": meetName,
               "Family": familyName,
-              "Parents": new Set(parents.split(';').map(p => p.trim())),
+              "Parents": new Set(parentSet),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
@@ -191,21 +221,33 @@
           entry.Competed = true;
         }
 
-        // Step 2: process volunteers to identify who volunteered at what meet
         for (const row of volunteers) {
           const meetDate = row["Meet Date"];
           const meetName = row["Meet Name"];
-          const parent = row["Parent"];
-          const job = row["Job"];
+          const parent = row["Parent"]?.trim();
+          const job = row["Job"]?.trim();
           if (!meetDate || !meetName || !parent || !job) continue;
-          const familyName = `${extractLastName(parent)} Family`;
-          const key = `${meetDate}|${meetName}|${familyName}`;
+
+          const parentSet = new Set();
+          if (parentExpansionMap[parent]) {
+            parentExpansionMap[parent].forEach(fam => parentSet.add(fam));
+          } else {
+            parentSet.add(parent);
+          }
+          const parentSetKey = Array.from(parentSet).sort().join('|');
+          const firstParent = parentSetKey.split('|')[0];
+          const parentLastName = volunteerLastNameMap[firstParent] || extractLastName(firstParent);
+          const familyName = `${parentLastName} Family`;
+          const key = `${meetDate}|${meetName}|${parentSetKey}`;
+
+          families.add(familyName);
+
           if (!reportMap.has(key)) {
             reportMap.set(key, {
               "Meet Date": meetDate,
               "Meet Name": meetName,
               "Family": familyName,
-              "Parents": new Set([parent]),
+              "Parents": new Set(parentSet),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
@@ -218,8 +260,7 @@
           entry.Volunteered = true;
         }
 
-        // Step 3: build rows
-        const rows = Array.from(reportMap.values()).map(entry => {
+        const allRows = Array.from(reportMap.values()).map(entry => {
           const met = entry.Competed ? (entry.Volunteered ? "YES" : "NO") : "N/A";
           return {
             meet: `${formatMeetDate(entry["Meet Date"])} - ${entry["Meet Name"]}`,
@@ -233,33 +274,59 @@
           };
         });
 
-        // Step 4: render table
-        const table = document.createElement('table');
-        table.innerHTML = `<thead><tr>
-          <th>Meet</th>
-          <th>Family</th>
-          <th>Swimmer(s)</th>
-          <th>Parent(s)</th>
-          <th>Job(s)</th>
-          <th>Competed?</th>
-          <th>Volunteered?</th>
-          <th>Compliant?</th>
-        </tr></thead><tbody>
-          ${rows.map(row => `
-            <tr>
-              <td>${row.meet}</td>
-              <td>${row.family}</td>
-              <td>${row.swimmers}</td>
-              <td>${row.parents}</td>
-              <td>${row.jobs}</td>
-              <td>${row.competed}</td>
-              <td>${row.volunteered}</td>
-              <td class="met-${row.met === 'YES' ? 'yes' : 'no'}">${row.met}</td>
-            </tr>`).join('')}
-        </tbody>`;
+        families.forEach(name => {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          document.getElementById("familyFilterSelect").appendChild(option);
+        });
 
-        container.innerHTML = '';
-        container.appendChild(table);
+        document.getElementById("familyFilterSelect").addEventListener("change", e => {
+          familyFilter = e.target.value;
+          renderTable();
+        });
+
+        document.getElementById("complianceFilterSelect").addEventListener("change", e => {
+          complianceFilter = e.target.value;
+          renderTable();
+        });
+
+        function renderTable() {
+          const rows = allRows.filter(row => {
+            const matchesFamily = !familyFilter || row.family === familyFilter;
+            const matchesCompliance = !complianceFilter || row.met === complianceFilter;
+            return matchesFamily && matchesCompliance;
+          });
+
+          const table = document.createElement('table');
+          table.innerHTML = `<thead><tr>
+            <th>Meet</th>
+            <th>Family</th>
+            <th>Swimmer(s)</th>
+            <th>Parent(s)</th>
+            <th>Job(s)</th>
+            <th>Competed?</th>
+            <th>Volunteered?</th>
+            <th>Compliant?</th>
+          </tr></thead><tbody>
+            ${rows.map(row => `
+              <tr>
+                <td>${row.meet}</td>
+                <td>${row.family}</td>
+                <td>${row.swimmers}</td>
+                <td>${row.parents}</td>
+                <td>${row.jobs}</td>
+                <td>${row.competed}</td>
+                <td>${row.volunteered}</td>
+                <td class="met-${row.met === 'YES' ? 'yes' : row.met === 'NO' ? 'no' : 'na'}">${row.met}</td>
+              </tr>`).join('')}
+          </tbody>`;
+
+          container.innerHTML = '';
+          container.appendChild(table);
+        }
+
+        renderTable();
       } catch (error) {
         container.innerHTML = `<p class="error">Error loading data: ${error.message}</p>`;
       }
