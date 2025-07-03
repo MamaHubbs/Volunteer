@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Volunteer Requirement Report - Families</title>
   <style>
     body {
@@ -31,29 +31,28 @@
     }
     .dropdown-container {
       text-align: center;
-      margin-bottom: 8px;
-      font-size: 0.7em;
-      position: sticky;
-      top: 0;
-      background-color: #f8f8f8;
-      padding: 10px 0;
-      z-index: 1000;
-      border-bottom: 1px solid #ccc;
+      margin-bottom: 12px;
     }
     .dropdown-box {
       display: inline-block;
-      margin: 0 4px;
+      margin: 0 10px;
     }
     label {
       font-weight: bold;
       display: block;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
-    select {
-      padding: 3px 6px;
-      font-size: 0.7em;
+    select, input[type="text"] {
+      padding: 4px 8px;
+      font-size: 0.8em;
       border-radius: 4px;
       border: 1px solid #ccc;
+    }
+    #familyNameFilterSelect {
+      width: 250px;
+    }
+    #familySearchInput {
+      min-width: 180px;
     }
     table {
       table-layout: fixed;
@@ -81,71 +80,63 @@
       white-space: nowrap;
       color: #0156B3;
     }
-    th.sortable::after {
-      content: ' \21C5';
-      font-size: 0.68em;
-      color: #666;
-      margin-left: 5px;
-    }
-    th.sortable.asc::after {
-      content: ' \25B2';
-      color: #0156B3;
-    }
-    th.sortable.desc::after {
-      content: ' \25BC';
-      color: #0156B3;
-    }
     tbody tr:nth-child(even) { background-color: #fdfdfd; }
     tbody tr:nth-child(odd) { background-color: #ffffff; }
     tbody tr:hover { background-color: #eaf6ff; }
-    .met-yes { font-weight: bold; color: #28a745; }
-    .met-no { font-weight: bold; color: #dc3545; }
-    .met-na { color: #6c757d; font-style: italic; }
-    .error { color: red; text-align: center; margin-top: 20px; }
+    .met-yes { font-weight: bold; color: #28a745; text-align: center; }
+    .met-no { font-weight: bold; color: #dc3545; text-align: center; }
+
+    th:nth-child(1), td:nth-child(1) { width: 25%; } /* Meet */
+    th:nth-child(2), td:nth-child(2) { width: 13%; } /* Family */
+    th:nth-child(3), td:nth-child(3) { width: 20%; } /* Swimmers */
+    th:nth-child(4), td:nth-child(4) { width: 20%; } /* Parents */
+    th:nth-child(5), td:nth-child(5) { width: 12%; } /* Jobs */
+    th:nth-child(6), td:nth-child(6),
+    th:nth-child(7), td:nth-child(7),
+    th:nth-child(8), td:nth-child(8) {
+      width: 4%;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <div class="main-content-wrapper">
     <h1>Volunteer Requirement Report (by Family)</h1>
-    <p>This report summarizes each family's swimmer and volunteer participation per meet.<br>
-    If a family had a swimmer compete, they should have had a parent volunteer.</p>
-
+    <p>Each row represents a family's participation and volunteer status for a given meet.</p>
     <div class="dropdown-container">
       <div class="dropdown-box">
-        <label for="familyFilterSelect">Family Name:</label>
-        <select id="familyFilterSelect">
+        <label for="familyNameFilterSelect">Filter by Family:</label>
+        <select id="familyNameFilterSelect">
           <option value="">All Families</option>
         </select>
       </div>
       <div class="dropdown-box">
-        <label for="complianceFilterSelect">Compliance:</label>
-        <select id="complianceFilterSelect">
-          <option value="">All Statuses</option>
-          <option value="YES">Met (YES)</option>
-          <option value="NO">Not Met (NO)</option>
-          <option value="N/A">N/A</option>
-        </select>
+        <label for="familySearchInput">Search Family Name:</label>
+        <input type="text" id="familySearchInput" placeholder="e.g. Ackerson" />
       </div>
     </div>
-
-    <div id="report-container">Loading report data...</div>
+    <div id="report-container">Loading...</div>
   </div>
-
   <script>
-    const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/main/2025_swimmerdata.json';
-    const VOLUNTEER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/main/2025_volunteerdata.json';
+    const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
+    const VOLUNTEER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
+
+    let currentFilterFamily = "";
+    let currentFilterFamilySearch = "";
 
     function formatMeetDate(dateString) {
-      const date = new Date(dateString);
-      if (isNaN(date)) return "N/A";
-      const parts = date.toDateString().split(" ");
-      return `${parts[1]} ${parts[2]}`;
+      if (!dateString || typeof dateString !== 'string') return "N/A";
+      const [year, month, day] = dateString.split("-");
+      return `${month.padStart(2, '0')} - ${day.padStart(2, '0')}`;
     }
 
-    function getLastNameFromCommaFormat(name) {
+    function extractLastName(name) {
       if (!name) return "";
-      const parts = name.split(',');
-      return parts[0].trim();
+      if (name.includes(",")) {
+        return name.split(",")[0].trim();
+      }
+      const parts = name.trim().split(" ");
+      return parts.length > 1 ? parts.at(-1) : parts[0];
     }
 
     async function loadJsonData(url) {
@@ -155,12 +146,59 @@
       return raw.values.map(row => Object.fromEntries(raw.fields.map((k, i) => [k, row[i]])));
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
+    function updateFamilyDropdown(options) {
+      const select = document.getElementById('familyNameFilterSelect');
+      select.innerHTML = '<option value="">All Families</option>';
+      options.sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+    }
+
+    function applyFiltersAndRender(dataRows) {
+      let filtered = dataRows;
+
+      if (currentFilterFamily) {
+        filtered = filtered.filter(row => row.family === currentFilterFamily);
+      }
+      if (currentFilterFamilySearch) {
+        filtered = filtered.filter(row => row.family.toLowerCase().includes(currentFilterFamilySearch));
+      }
+
+      filtered.sort((a, b) => a.meet.localeCompare(b.meet));
+
       const container = document.getElementById('report-container');
-      let familyFilter = "";
-      let complianceFilter = "";
-      let currentSortKey = "Meet";
-      let currentSortDirection = "asc";
+      const table = document.createElement('table');
+      table.innerHTML = `<thead><tr>
+        <th>Meet</th>
+        <th>Family</th>
+        <th>Swimmer(s)</th>
+        <th>Parent(s)</th>
+        <th>Job(s)</th>
+        <th>Competed?</th>
+        <th>Volunteered?</th>
+        <th>Compliant?</th>
+      </tr></thead><tbody>
+        ${filtered.map(row => `
+          <tr>
+            <td>${row.meet}</td>
+            <td>${row.family}</td>
+            <td>${row.swimmers}</td>
+            <td>${row.parents}</td>
+            <td>${row.jobs}</td>
+            <td>${row.competed}</td>
+            <td>${row.volunteered}</td>
+            <td class="met-${row.met === 'YES' ? 'yes' : 'no'}">${row.met}</td>
+          </tr>`).join('')}
+      </tbody>`;
+      container.innerHTML = '';
+      container.appendChild(table);
+    }
+
+    async function generateFamilyReport() {
+      const container = document.getElementById('report-container');
 
       try {
         const [swimmers, volunteers] = await Promise.all([
@@ -169,49 +207,72 @@
         ]);
 
         const reportMap = new Map();
-        const families = new Set();
+        const volunteerLastNameMap = {};
 
-        swimmers.forEach(row => {
-          const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
+        volunteers.forEach(v => {
+          if (v["Parent"]) {
+            volunteerLastNameMap[v["Parent"].trim()] = extractLastName(v["Parent"].trim());
+          }
+        });
+
+        swimmers.forEach(s => {
+          const parents = s["Associated Parents For Swimmer"];
+          if (parents) {
+            parents.split(';').forEach(p => {
+              if (p) volunteerLastNameMap[p.trim()] = extractLastName(p.trim());
+            });
+          }
+        });
+
+        for (const row of swimmers) {
+          const meetDate = row["Meet Date"];
+          const meetName = row["Meet Name"];
           const swimmer = row["Swimmer Name"];
-          const parents = row["Associated Parents For Swimmer"] || "";
-          const parentLastNames = parents.split(';').map(p => getLastNameFromCommaFormat(p.trim()));
-          const familyName = parentLastNames[0] ? `${parentLastNames[0]} Family` : "Unknown Family";
-          const key = `${meetKey}|${familyName}`;
+          const parents = row["Associated Parents For Swimmer"];
+          if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
 
+          const parentSet = new Set(parents.split(';').map(p => p.trim()));
+          const parentSetKey = Array.from(parentSet).sort().join('|');
+          const primaryParent = parentSetKey.split('|')[0];
+          const parentLastName = volunteerLastNameMap[primaryParent] || extractLastName(primaryParent);
+          const familyName = `${parentLastName} Family`;
+          const key = `${meetDate}|${meetName}|${parentSetKey}`;
           if (!reportMap.has(key)) {
             reportMap.set(key, {
-              "Meet Date": row["Meet Date"],
-              "Meet Name": row["Meet Name"],
+              "Meet Date": meetDate,
+              "Meet Name": meetName,
               "Family": familyName,
-              "Parents": new Set(parents.split(';').map(p => p.trim())),
+              "Parents": new Set(Array.from(parentSet)),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
               "Volunteered": false
             });
           }
-
           const entry = reportMap.get(key);
           entry.Swimmers.add(swimmer);
           entry.Competed = true;
-          families.add(familyName);
-        });
+        }
 
-        volunteers.forEach(row => {
-          const meetKey = `${row["Meet Date"]}|${row["Meet Name"]}`;
+        for (const row of volunteers) {
+          const meetDate = row["Meet Date"];
+          const meetName = row["Meet Name"];
           const parent = row["Parent"];
-          const swimmers = [row["Swimmer 1"], row["Swimmer 2"], row["Swimmer 3"], row["Swimmer 4"], row["Swimmer 5"], row["Swimmer 6"], row["Swimmer 7"], row["Swimmer 8"], row["Swimmer 9"]].filter(Boolean);
-          const parentLastName = getLastNameFromCommaFormat(parent);
-          const familyName = parentLastName ? `${parentLastName} Family` : "Unknown Family";
-          const key = `${meetKey}|${familyName}`;
+          const job = row["Job"];
+          if (!meetDate || !meetName || !parent || !job) continue;
+
+          const parentLastName = extractLastName(parent);
+          const familyName = `${parentLastName} Family`;
+          const key = Array.from(reportMap.keys()).find(k =>
+            k.startsWith(`${meetDate}|${meetName}`) && k.includes(parent)
+          ) || `${meetDate}|${meetName}|${parent}`;
 
           if (!reportMap.has(key)) {
             reportMap.set(key, {
-              "Meet Date": row["Meet Date"],
-              "Meet Name": row["Meet Name"],
+              "Meet Date": meetDate,
+              "Meet Name": meetName,
               "Family": familyName,
-              "Parents": new Set(),
+              "Parents": new Set([parent]),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
@@ -221,11 +282,9 @@
 
           const entry = reportMap.get(key);
           entry.Parents.add(parent);
-          swimmers.forEach(s => entry.Swimmers.add(s));
-          if (row["Job"]) entry.Jobs.add(row["Job"]);
+          entry.Jobs.add(job);
           entry.Volunteered = true;
-          families.add(familyName);
-        });
+        }
 
         const allRows = Array.from(reportMap.values()).map(entry => {
           const met = entry.Competed ? (entry.Volunteered ? "YES" : "NO") : "N/A";
@@ -241,83 +300,26 @@
           };
         });
 
-        families.forEach(name => {
-          const option = document.createElement('option');
-          option.value = name;
-          option.textContent = name;
-          document.getElementById("familyFilterSelect").appendChild(option);
+        const familyNames = [...new Set(allRows.map(row => row.family))];
+        updateFamilyDropdown(familyNames);
+        applyFiltersAndRender(allRows);
+
+        document.getElementById('familyNameFilterSelect').addEventListener('change', (e) => {
+          currentFilterFamily = e.target.value;
+          applyFiltersAndRender(allRows);
         });
 
-        document.getElementById("familyFilterSelect").addEventListener("change", e => {
-          familyFilter = e.target.value;
-          renderTable();
+        document.getElementById('familySearchInput').addEventListener('input', (e) => {
+          currentFilterFamilySearch = e.target.value.toLowerCase();
+          applyFiltersAndRender(allRows);
         });
 
-        document.getElementById("complianceFilterSelect").addEventListener("change", e => {
-          complianceFilter = e.target.value;
-          renderTable();
-        });
-
-        function renderTable() {
-          let rows = [...allRows];
-
-          if (familyFilter) rows = rows.filter(row => row.family === familyFilter);
-          if (complianceFilter) rows = rows.filter(row => row.met === complianceFilter);
-
-          rows.sort((a, b) => {
-            const valA = a[currentSortKey] || "";
-            const valB = b[currentSortKey] || "";
-            return currentSortDirection === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
-          });
-
-          const table = document.createElement('table');
-          table.innerHTML = `<thead><tr>
-            <th class="sortable" data-key="meet">Meet</th>
-            <th class="sortable" data-key="family">Family</th>
-            <th class="sortable" data-key="swimmers">Swimmer(s)</th>
-            <th class="sortable" data-key="parents">Parent(s)</th>
-            <th class="sortable" data-key="jobs">Job(s)</th>
-            <th class="sortable" data-key="competed">Competed?</th>
-            <th class="sortable" data-key="volunteered">Volunteered?</th>
-            <th class="sortable" data-key="met">Compliant?</th>
-          </tr></thead><tbody>
-            ${rows.map(row => `
-              <tr>
-                <td>${row.meet}</td>
-                <td>${row.family}</td>
-                <td>${row.swimmers}</td>
-                <td>${row.parents}</td>
-                <td>${row.jobs}</td>
-                <td>${row.competed}</td>
-                <td>${row.volunteered}</td>
-                <td class="met-${row.met === 'YES' ? 'yes' : row.met === 'NO' ? 'no' : 'na'}">${row.met}</td>
-              </tr>`).join('')}
-          </tbody>`;
-
-          container.innerHTML = '';
-          container.appendChild(table);
-
-          document.querySelectorAll('th.sortable').forEach(th => {
-            th.classList.remove('asc', 'desc');
-            if (th.dataset.key === currentSortKey) th.classList.add(currentSortDirection);
-            th.onclick = () => {
-              const key = th.dataset.key;
-              if (currentSortKey === key) {
-                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-              } else {
-                currentSortKey = key;
-                currentSortDirection = 'asc';
-              }
-              renderTable();
-            };
-          });
-        }
-
-        renderTable();
       } catch (error) {
         container.innerHTML = `<p class="error">Error loading data: ${error.message}</p>`;
       }
-    });
+    }
+
+    document.addEventListener('DOMContentLoaded', generateFamilyReport);
   </script>
 </body>
 </html>
