@@ -86,15 +86,13 @@
     .met-yes { font-weight: bold; color: #28a745; text-align: center; }
     .met-no { font-weight: bold; color: #dc3545; text-align: center; }
 
-    th:nth-child(1), td:nth-child(1) { width: 25%; } /* Meet */
-    th:nth-child(2), td:nth-child(2) { width: 13%; } /* Family */
-    th:nth-child(3), td:nth-child(3) { width: 20%; } /* Swimmers */
-    th:nth-child(4), td:nth-child(4) { width: 20%; } /* Parents */
-    th:nth-child(5), td:nth-child(5) { width: 12%; } /* Jobs */
-    th:nth-child(6), td:nth-child(6),
-    th:nth-child(7), td:nth-child(7),
-    th:nth-child(8), td:nth-child(8) {
-      width: 4%;
+    th:nth-child(1), td:nth-child(1) { width: 32%; } /* Meet */
+    th:nth-child(2), td:nth-child(2) { width: 33%; } /* Swimmers */
+    th:nth-child(3), td:nth-child(3) { width: 17%; } /* Jobs */
+    th:nth-child(4), td:nth-child(4),
+    th:nth-child(5), td:nth-child(5),
+    th:nth-child(6), td:nth-child(6) {
+      width: 6%;
       text-align: center;
     }
   </style>
@@ -114,6 +112,15 @@
         <label for="familySearchInput">Search Family Name:</label>
         <input type="text" id="familySearchInput" placeholder="e.g. Ackerson" />
       </div>
+      <div class="dropdown-box">
+        <label for="metRequirementFilter">Filter by Met:</label>
+        <select id="metRequirementFilter">
+          <option value="">All</option>
+          <option value="YES">Met</option>
+          <option value="NO">Not Met</option>
+          <option value="N/A">N/A</option>
+        </select>
+      </div>
     </div>
     <div id="report-container">Loading...</div>
   </div>
@@ -121,205 +128,175 @@
     const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
     const VOLUNTEER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
 
-    let currentFilterFamily = "";
-    let currentFilterFamilySearch = "";
-
     function formatMeetDate(dateString) {
-      if (!dateString || typeof dateString !== 'string') return "N/A";
-      const [year, month, day] = dateString.split("-");
-      return `${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const date = new Date(dateString);
+      if (isNaN(date)) return "N/A";
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}-${dd}-${yyyy}`;
     }
 
     function extractLastName(name) {
       if (!name) return "";
-      if (name.includes(",")) {
-        return name.split(",")[0].trim();
-      }
-      const parts = name.trim().split(" ");
-      return parts.length > 1 ? parts.at(-1) : parts[0];
+      const commaSplit = name.split(",");
+      return commaSplit.length === 2 ? commaSplit[0].trim() : name.trim().split(" ").pop();
     }
 
-    async function loadJsonData(url) {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Failed to load ${url}`);
-      const raw = await res.json();
-      return raw.values.map(row => Object.fromEntries(raw.fields.map((k, i) => [k, row[i]])));
-    }
-
-    function updateFamilyDropdown(options) {
-      const select = document.getElementById('familyNameFilterSelect');
-      select.innerHTML = '<option value="">All Families</option>';
-      options.sort().forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        select.appendChild(opt);
-      });
-    }
-
-    function applyFiltersAndRender(dataRows) {
-      let filtered = dataRows;
-
-      if (currentFilterFamily) {
-        filtered = filtered.filter(row => row.family === currentFilterFamily);
-      }
-      if (currentFilterFamilySearch) {
-        filtered = filtered.filter(row => row.family.toLowerCase().includes(currentFilterFamilySearch));
-      }
-
-      filtered.sort((a, b) => a.meet.localeCompare(b.meet));
-
+    function renderTable(data) {
       const container = document.getElementById('report-container');
       const table = document.createElement('table');
       table.innerHTML = `<thead><tr>
         <th>Meet</th>
-        <th>Family</th>
         <th>Swimmer(s)</th>
-        <th>Parent(s)</th>
         <th>Job(s)</th>
-        <th>Competed?</th>
-        <th>Volunteered?</th>
-        <th>Compliant?</th>
+        <th>Swam?</th>
+        <th>Worked?</th>
+        <th>Met?</th>
       </tr></thead><tbody>
-        ${filtered.map(row => `
+        ${data.map(row => `
           <tr>
             <td>${row.meet}</td>
-            <td>${row.family}</td>
             <td>${row.swimmers}</td>
-            <td>${row.parents}</td>
             <td>${row.jobs}</td>
             <td>${row.competed}</td>
             <td>${row.volunteered}</td>
-            <td class="met-${row.met === 'YES' ? 'yes' : 'no'}">${row.met}</td>
+            <td class="met-${row.met === 'YES' ? 'yes' : row.met === 'NO' ? 'no' : 'na'}">${row.met}</td>
           </tr>`).join('')}
       </tbody>`;
       container.innerHTML = '';
       container.appendChild(table);
     }
 
-    async function generateFamilyReport() {
-      const container = document.getElementById('report-container');
-
-      try {
-        const [swimmers, volunteers] = await Promise.all([
-          loadJsonData(SWIMMER_DATA_URL),
-          loadJsonData(VOLUNTEER_DATA_URL)
-        ]);
-
-        const reportMap = new Map();
-        const volunteerLastNameMap = {};
-
-        volunteers.forEach(v => {
-          if (v["Parent"]) {
-            volunteerLastNameMap[v["Parent"].trim()] = extractLastName(v["Parent"].trim());
-          }
-        });
-
-        swimmers.forEach(s => {
-          const parents = s["Associated Parents For Swimmer"];
-          if (parents) {
-            parents.split(';').forEach(p => {
-              if (p) volunteerLastNameMap[p.trim()] = extractLastName(p.trim());
-            });
-          }
-        });
-
-        for (const row of swimmers) {
-          const meetDate = row["Meet Date"];
-          const meetName = row["Meet Name"];
-          const swimmer = row["Swimmer Name"];
-          const parents = row["Associated Parents For Swimmer"];
-          if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
-
-          const parentSet = new Set(parents.split(';').map(p => p.trim()));
-          const parentSetKey = Array.from(parentSet).sort().join('|');
-          const primaryParent = parentSetKey.split('|')[0];
-          const parentLastName = volunteerLastNameMap[primaryParent] || extractLastName(primaryParent);
-          const familyName = `${parentLastName} Family`;
-          const key = `${meetDate}|${meetName}|${parentSetKey}`;
-          if (!reportMap.has(key)) {
-            reportMap.set(key, {
-              "Meet Date": meetDate,
-              "Meet Name": meetName,
-              "Family": familyName,
-              "Parents": new Set(Array.from(parentSet)),
-              "Swimmers": new Set(),
-              "Jobs": new Set(),
-              "Competed": false,
-              "Volunteered": false
-            });
-          }
-          const entry = reportMap.get(key);
-          entry.Swimmers.add(swimmer);
-          entry.Competed = true;
-        }
-
-        for (const row of volunteers) {
-          const meetDate = row["Meet Date"];
-          const meetName = row["Meet Name"];
-          const parent = row["Parent"];
-          const job = row["Job"];
-          if (!meetDate || !meetName || !parent || !job) continue;
-
-          const parentLastName = extractLastName(parent);
-          const familyName = `${parentLastName} Family`;
-          const key = Array.from(reportMap.keys()).find(k =>
-            k.startsWith(`${meetDate}|${meetName}`) && k.includes(parent)
-          ) || `${meetDate}|${meetName}|${parent}`;
-
-          if (!reportMap.has(key)) {
-            reportMap.set(key, {
-              "Meet Date": meetDate,
-              "Meet Name": meetName,
-              "Family": familyName,
-              "Parents": new Set([parent]),
-              "Swimmers": new Set(),
-              "Jobs": new Set(),
-              "Competed": false,
-              "Volunteered": false
-            });
-          }
-
-          const entry = reportMap.get(key);
-          entry.Parents.add(parent);
-          entry.Jobs.add(job);
-          entry.Volunteered = true;
-        }
-
-        const allRows = Array.from(reportMap.values()).map(entry => {
-          const met = entry.Competed ? (entry.Volunteered ? "YES" : "NO") : "N/A";
-          return {
-            meet: `${formatMeetDate(entry["Meet Date"])} - ${entry["Meet Name"]}`,
-            family: entry.Family,
-            swimmers: Array.from(entry.Swimmers).join(", ") || "-",
-            parents: Array.from(entry.Parents).join(", "),
-            jobs: Array.from(entry.Jobs).join(", ") || "-",
-            competed: entry.Competed ? "YES" : "NO",
-            volunteered: entry.Volunteered ? "YES" : "NO",
-            met: met
-          };
-        });
-
-        const familyNames = [...new Set(allRows.map(row => row.family))];
-        updateFamilyDropdown(familyNames);
-        applyFiltersAndRender(allRows);
-
-        document.getElementById('familyNameFilterSelect').addEventListener('change', (e) => {
-          currentFilterFamily = e.target.value;
-          applyFiltersAndRender(allRows);
-        });
-
-        document.getElementById('familySearchInput').addEventListener('input', (e) => {
-          currentFilterFamilySearch = e.target.value.toLowerCase();
-          applyFiltersAndRender(allRows);
-        });
-
-      } catch (error) {
-        container.innerHTML = `<p class="error">Error loading data: ${error.message}</p>`;
-      }
+    function applyFilters(data, familyFilter, searchText, metFilter) {
+      return data.filter(row => {
+        const matchesFamily = !familyFilter || row.family === familyFilter;
+        const matchesSearch = !searchText || row.family.toLowerCase().includes(searchText.toLowerCase());
+        const matchesMet = !metFilter || row.met === metFilter;
+        return matchesFamily && matchesSearch && matchesMet;
+      });
     }
 
-    document.addEventListener('DOMContentLoaded', generateFamilyReport);
+    async function fetchAndRender() {
+      const res1 = await fetch(SWIMMER_DATA_URL);
+      const res2 = await fetch(VOLUNTEER_DATA_URL);
+      const swimmerJson = await res1.json();
+      const volunteerJson = await res2.json();
+      const swimmers = swimmerJson.values.map(row => Object.fromEntries(swimmerJson.fields.map((k, i) => [k, row[i]])));
+      const volunteers = volunteerJson.values.map(row => Object.fromEntries(volunteerJson.fields.map((k, i) => [k, row[i]])));
+
+      const reportMap = new Map();
+      const volunteerLastNameMap = {};
+
+      for (const v of volunteers) {
+        if (v["Parent"] && v["Parent Last Name"]) {
+          volunteerLastNameMap[v["Parent"].trim()] = v["Parent Last Name"].trim();
+        }
+      }
+
+      for (const s of swimmers) {
+        const parentString = s["Associated Parents For Swimmer"];
+        const parentLastName = s["Parent Last Name"];
+        if (parentString && parentLastName) {
+          parentString.split(';').forEach(p => {
+            const name = p.trim();
+            if (name && !volunteerLastNameMap[name]) {
+              volunteerLastNameMap[name] = parentLastName.trim();
+            }
+          });
+        }
+      }
+
+      for (const row of swimmers) {
+        const meetDate = row["Meet Date"];
+        const meetName = row["Meet Name"];
+        const swimmer = row["Swimmer Name"];
+        const parents = row["Associated Parents For Swimmer"];
+        if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
+        const parentSet = new Set(parents.split(';').map(p => p.trim()));
+        const parentSetKey = Array.from(parentSet).sort().join('|');
+        const firstParent = parentSetKey.split('|')[0];
+        const parentLastName = volunteerLastNameMap[firstParent] || extractLastName(firstParent);
+        const familyName = `${parentLastName} Family`;
+        const key = `${meetDate}|${meetName}|${familyName}`;
+        if (!reportMap.has(key)) {
+          reportMap.set(key, {
+            "Meet Date": meetDate,
+            "Meet Name": meetName,
+            family: familyName,
+            Swimmers: new Set(),
+            Jobs: new Set(),
+            Competed: false,
+            Volunteered: false
+          });
+        }
+        const entry = reportMap.get(key);
+        entry.Swimmers.add(swimmer);
+        entry.Competed = true;
+      }
+
+      for (const row of volunteers) {
+        const meetDate = row["Meet Date"];
+        const meetName = row["Meet Name"];
+        const parent = row["Parent"];
+        const job = row["Job"];
+        if (!meetDate || !meetName || !parent || !job) continue;
+        const familyName = `${extractLastName(parent)} Family`;
+        const key = `${meetDate}|${meetName}|${familyName}`;
+        if (!reportMap.has(key)) {
+          reportMap.set(key, {
+            "Meet Date": meetDate,
+            "Meet Name": meetName,
+            family: familyName,
+            Swimmers: new Set(),
+            Jobs: new Set(),
+            Competed: false,
+            Volunteered: false
+          });
+        }
+        const entry = reportMap.get(key);
+        entry.Jobs.add(job);
+        entry.Volunteered = true;
+      }
+
+      const allRows = Array.from(reportMap.values()).map(entry => {
+        const met = entry.Competed ? (entry.Volunteered ? "YES" : "NO") : "N/A";
+        return {
+          meet: `${formatMeetDate(entry["Meet Date"])} ${entry["Meet Name"]}`,
+          family: entry.family,
+          swimmers: Array.from(entry.Swimmers).join(", ") || "-",
+          jobs: Array.from(entry.Jobs).join(", ") || "-",
+          competed: entry.Competed ? "YES" : "NO",
+          volunteered: entry.Volunteered ? "YES" : "NO",
+          met
+        };
+      });
+
+      const familyFilterSelect = document.getElementById("familyNameFilterSelect");
+      const families = [...new Set(allRows.map(r => r.family))].sort();
+      families.forEach(fam => {
+        const opt = document.createElement("option");
+        opt.value = fam;
+        opt.textContent = fam;
+        familyFilterSelect.appendChild(opt);
+      });
+
+      const filterRows = () => {
+        const famFilter = familyFilterSelect.value;
+        const search = document.getElementById("familySearchInput").value;
+        const met = document.getElementById("metRequirementFilter").value;
+        const filtered = applyFilters(allRows, famFilter, search, met);
+        renderTable(filtered);
+      };
+
+      document.getElementById("familyNameFilterSelect").addEventListener("change", filterRows);
+      document.getElementById("familySearchInput").addEventListener("input", filterRows);
+      document.getElementById("metRequirementFilter").addEventListener("change", filterRows);
+
+      renderTable(allRows);
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchAndRender);
   </script>
 </body>
 </html>
