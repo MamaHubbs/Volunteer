@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Volunteer Requirement Report - Families</title>
   <style>
+    /* BASE STYLES FROM USER'S WEBSITE */
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
@@ -34,17 +35,26 @@
       width: 100%;
       max-width: 890px;
       border-collapse: collapse;
-      font-size: 0.85em;
-      margin-top: 20px;
+      font-size: 0.68em;
+      margin-top: 10px;
     }
     th, td {
       padding: 6px 10px;
       border: 1px solid #ccc;
       text-align: left;
       vertical-align: top;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     th {
       background-color: #e5f1ff;
+      position: sticky;
+      top: 50px;
+      z-index: 1;
+      cursor: pointer;
+      white-space: nowrap;
+      color: #0156B3;
     }
     tbody tr:nth-child(even) { background-color: #fdfdfd; }
     tbody tr:nth-child(odd) { background-color: #ffffff; }
@@ -71,8 +81,10 @@
     }
 
     function extractLastName(name) {
-      return name?.split(" ").slice(-1)[0] || "";
-    }
+  if (!name) return "";
+  const parts = name.trim().split(" ");
+  return parts.length > 1 ? parts[parts.length - 1] : parts[0];
+}
 
     async function loadJsonData(url) {
       const res = await fetch(url);
@@ -99,8 +111,9 @@
           const swimmer = row["Swimmer Name"];
           const parents = row["Associated Parents For Swimmer"];
           if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
-          const familyName = `${extractLastName(parents.split(';')[0])} Family`;
-          const key = `${meetDate}|${meetName}|${familyName}`;
+          const parentSetKey = Array.from(new Set((Array.isArray(parents) ? parents : parents.split(';')).map(p => p.trim()))).sort().join('|');
+          const familyName = `${extractLastName(parentSetKey.split('|')[0])} Family`;
+          const key = `${meetDate}|${meetName}|${parentSetKey}`;
           if (!reportMap.has(key)) {
             reportMap.set(key, {
               "Meet Date": meetDate,
