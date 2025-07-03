@@ -169,16 +169,15 @@
             margin-top: 20px;
         }
 
-        /* Column Widths - Adjusted for 9 columns and content */
-        th:nth-child(1), td:nth-child(1) { width: 9%; }
-        th:nth-child(2), td:nth-child(2) { width: 18%; }
-        th:nth-child(3), td:nth-child(3) { width: 15%; }
-        th:nth-child(4), td:nth-child(4) { width: 7%; text-align: center; }
-        th:nth-child(5), td:nth-child(5) { width: 15%; }
-        th:nth-child(6), td:nth-child(6) { width: 8%; }
-        th:nth-child(7), td:nth-child(7) { width: 11%; }
-        th:nth-child(8), td:nth-child(8) { width: 5%; text-align: center; }
-        th:nth-child(9), td:nth-child(9) { width: 12%; }
+        /* Column Widths - Adjusted for 8 columns and content */
+        th:nth-child(1), td:nth-child(1) { width: 26%; }
+        th:nth-child(3), td:nth-child(2) { width: 15%; }
+        th:nth-child(4), td:nth-child(3) { width: 7%; text-align: center; }
+        th:nth-child(5), td:nth-child(4) { width: 15%; }
+        th:nth-child(6), td:nth-child(5) { width: 8%; }
+        th:nth-child(7), td:nth-child(6) { width: 13%; }
+        th:nth-child(8), td:nth-child(7) { width: 5%; text-align: center; }
+        th:nth-child(9), td:nth-child(8) { width: 12%; }
 
         /* Cell content overflow */
         td {
@@ -291,8 +290,7 @@
 
                 const rowHtml = `
                     <tr class="${competedClass}">
-                        <td>${rowData["Meet Date"] || "N/A"}</td>
-                        <td>${rowData["Meet Name"] || "N/A"}</td>
+                        <td>${rowData["Meet Date"] || "N/A"}${rowData["Meet Name"] || "N/A"}</td>
                         <td>${rowData["Swimmer Name"] || "N/A"}</td>
                         <td>${rowData["Competed YES/NO"] || "N/A"}</td>
                         <td>${rowData["Parent Name"] || "N/A"}</td>
@@ -543,8 +541,7 @@
                 }
 
                 const row = {
-                    "Meet Date": meetDate,
-                    "Meet Name": meetName,
+                    "Meet": meetDate; meetName,
                     "Swimmer Name": associatedSwimmersList.length ? associatedSwimmersList.join(", ") : "N/A",
                     "Competed YES/NO": competedStatus,
                     "Parent Name": parentName,
@@ -563,8 +560,7 @@
                         const swimmerParents = competedSwimmersByMeet[meetName][meetDate][swimmerName];
                         if (!processedSwimmerMeetCombos.has(`${meetDate}|${meetName}|${swimmerName}`)) {
                             const row = {
-                                "Meet Date": meetDate,
-                                "Meet Name": meetName,
+                                "Meet": meetDate; meetName,
                                 "Swimmer Name": swimmerName,
                                 "Competed YES/NO": "YES",
                                 "Parent Name": swimmerParents,
