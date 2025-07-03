@@ -259,7 +259,7 @@ function extractFirstName(fullName) {
             });
           }
           const entry = reportMap.get(key);
-          entry.Swimmers.add(extractFirstName(swimmer));
+          entry.Swimmers.add(swimmer);
           entry.Competed = true;
         }
 
@@ -290,7 +290,7 @@ function extractFirstName(fullName) {
           }
 
           const entry = reportMap.get(key);
-          entry.Parents.add(extractFirstName(parent));
+          entry.Parents.add(parent);
           entry.Jobs.add(job);
           entry.Volunteered = true;
         }
@@ -300,8 +300,8 @@ function extractFirstName(fullName) {
           return {
             meet: `${formatMeetDate(entry["Meet Date"])} - ${entry["Meet Name"]}`,
             family: entry.Family,
-            swimmers: Array.from(entry.Swimmers).join(", ") || "-",
-            parents: Array.from(entry.Parents).join(", "),
+            swimmers: Array.from(entry.Swimmers).map(extractFirstName).join(", "),
+            parents: Array.from(entry.Parents).map(extractFirstName).join(", "),
             jobs: Array.from(entry.Jobs).join(", ") || "-",
             competed: entry.Competed ? "YES" : "NO",
             volunteered: entry.Volunteered ? "YES" : "NO",
