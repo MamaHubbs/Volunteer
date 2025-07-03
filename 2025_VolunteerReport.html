@@ -539,7 +539,7 @@
                 if (competedStatus === "YES") {
                     metRequirement = "YES";
                 } else {
-                    metRequirement = "N/A (No Child Competed)";
+                    metRequirement = "N/A";
                 }
 
                 const row = {
@@ -571,8 +571,8 @@
                                 "Job": "N/A",
                                 "Shift": "N/A",
                                 "Points": "N/A",
-                                "Met Requirement": "NO (Child Competed, Parent Not Volunteered)",
-                                _allParentNamesForFilter: swimmerParents.split('; ').map(name => name.trim()).filter(name => name !== "No Parent Linked (for Swimmer)")
+                                "Met Requirement": "NO",
+                                _allParentNamesForFilter: swimmerParents.split('; ').map(name => name.trim()).filter(name => name !== "No Parent Linked")
                             };
                             tempReportRows.push(row);
                         }
@@ -594,7 +594,7 @@
                             <th data-sort-key="Job">Job</th>
                             <th data-sort-key="Shift">Shift</th>
                             <th data-sort-key="Points">Points</th>
-                            <th data-sort-key="Met Requirement">Met Requirement</th>
+                            <th data-sort-key="Met Requirement">Compliant?</th>
                         </tr>
                     </thead>
                     <tbody>
