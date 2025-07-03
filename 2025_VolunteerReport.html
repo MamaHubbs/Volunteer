@@ -235,7 +235,7 @@
           const parentSetKey = Array.from(parentSet).sort().join('|');
           const primaryParent = parentSetKey.split('|')[0];
           const parentLastName = volunteerLastNameMap[primaryParent] || extractLastName(primaryParent);
-          const familyName = `${parentLastName} Family`;
+          const familyName = parentLastName;
           const key = `${meetDate}|${meetName}|${parentSetKey}`;
           if (!reportMap.has(key)) {
             reportMap.set(key, {
