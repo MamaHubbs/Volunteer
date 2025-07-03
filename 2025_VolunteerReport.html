@@ -131,18 +131,18 @@
     }
 
     function normalizeName(name) {
-  return name.trim().toLowerCase();
-}
-    
-function extractFirstName(fullName) {
-  if (!fullName) return "";
-  const parts = fullName.split(",");
-  if (parts.length === 2) {
-    return parts[1].trim().split(" ")[0]; // "Ackerson, Adam James" → "Adam"
-  }
-  return fullName.trim().split(" ")[0]; // fallback
-}
-    
+      return name.trim().toLowerCase();
+    }
+
+    function extractFirstName(fullName) {
+      if (!fullName) return "";
+      const parts = fullName.split(",");
+      if (parts.length === 2) {
+        return parts[1].trim().split(" ")[0];
+      }
+      return fullName.trim().split(" ")[0];
+    }
+
     function extractLastName(name) {
       if (!name) return "";
       if (name.includes(",")) {
@@ -220,22 +220,6 @@ function extractFirstName(fullName) {
         ]);
 
         const reportMap = new Map();
-        const volunteerLastNameMap = {};
-
-        volunteers.forEach(v => {
-          if (v["Parent"]) {
-            volunteerLastNameMap[v["Parent"].trim()] = extractLastName(v["Parent"].trim());
-          }
-        });
-
-        swimmers.forEach(s => {
-          const parents = s["Associated Parents For Swimmer"];
-          if (parents) {
-            parents.split(';').forEach(p => {
-              if (p) volunteerLastNameMap[p.trim()] = extractLastName(p.trim());
-            });
-          }
-        });
 
         for (const row of swimmers) {
           const meetDate = row["Meet Date"];
@@ -245,24 +229,24 @@ function extractFirstName(fullName) {
           if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
 
           const parentSet = new Set(parents.split(';').map(p => p.trim()));
-          const parentSetKey = Array.from(parentSet)
-  .map(normalizeName)
-  .sort()
-  .join('|');
-          const primaryParent = parentSetKey.split('|')[0];
-          const parentLastName = volunteerLastNameMap[primaryParent] || extractLastName(primaryParent);
+          const normalizedParentSet = new Set(Array.from(parentSet).map(normalizeName));
+          const parentSetKey = Array.from(normalizedParentSet).sort().join('|');
+          const primaryParent = Array.from(normalizedParentSet)[0];
+          const parentLastName = extractLastName(primaryParent);
           const familyName = parentLastName;
           const key = `${meetDate}|${meetName}|${parentSetKey}`;
+
           if (!reportMap.has(key)) {
             reportMap.set(key, {
               "Meet Date": meetDate,
               "Meet Name": meetName,
               "Family": familyName,
-              "Parents": new Set(Array.from(parentSet)),
+              "Parents": new Set(parentSet),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
-              "Volunteered": false
+              "Volunteered": false,
+              _normalizedParents: normalizedParentSet
             });
           }
           const entry = reportMap.get(key);
@@ -277,23 +261,28 @@ function extractFirstName(fullName) {
           const job = row["Job"];
           if (!meetDate || !meetName || !parent || !job) continue;
 
-          const parentLastName = extractLastName(parent);
-          const familyName = `${parentLastName} Family`;
-const normalizedParent = normalizeName(parent);
-const key = Array.from(reportMap.keys()).find(k =>
-  k.startsWith(`${meetDate}|${meetName}`) && k.includes(normalizedParent)
-) || `${meetDate}|${meetName}|${normalizedParent}`;
+          const normalizedParent = normalizeName(parent);
+          let key = null;
 
-          if (!reportMap.has(key)) {
+          for (const [k, entry] of reportMap.entries()) {
+            if (k.startsWith(`${meetDate}|${meetName}`) && entry._normalizedParents.has(normalizedParent)) {
+              key = k;
+              break;
+            }
+          }
+
+          if (!key) {
+            key = `${meetDate}|${meetName}|${normalizedParent}`;
             reportMap.set(key, {
               "Meet Date": meetDate,
               "Meet Name": meetName,
-              "Family": familyName,
+              "Family": extractLastName(parent),
               "Parents": new Set([parent]),
               "Swimmers": new Set(),
               "Jobs": new Set(),
               "Competed": false,
-              "Volunteered": false
+              "Volunteered": false,
+              _normalizedParents: new Set([normalizedParent])
             });
           }
 
