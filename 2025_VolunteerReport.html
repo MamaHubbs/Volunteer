@@ -105,6 +105,30 @@
         const reportMap = new Map();
 
         const volunteerLastNameMap = {};
+        const parentExpansionMap = {};
+
+        // Build last name map and parent expansion map from volunteers
+        volunteers.forEach(v => {
+          const fullName = v["Parent"]?.trim();
+          const lastName = v["Parent Last Name"]?.trim();
+          if (fullName && lastName) {
+            volunteerLastNameMap[fullName] = lastName;
+            if (!parentExpansionMap[fullName]) parentExpansionMap[fullName] = new Set();
+            parentExpansionMap[fullName].add(fullName);
+          }
+        });
+
+        // Expand parent-to-family mapping from swimmer data
+        swimmers.forEach(s => {
+          const parentString = s["Associated Parents For Swimmer"];
+          if (parentString) {
+            const parents = parentString.split(';').map(p => p.trim()).filter(Boolean);
+            parents.forEach(p => {
+              if (!parentExpansionMap[p]) parentExpansionMap[p] = new Set();
+              parents.forEach(other => parentExpansionMap[p].add(other));
+            });
+          }
+        });
         volunteers.forEach(v => {
           if (v["Parent"] && v["Parent Last Name"]) {
             volunteerLastNameMap[v["Parent"].trim()] = v["Parent Last Name"].trim();
@@ -136,9 +160,14 @@
           const parents = row["Associated Parents For Swimmer"];
           if (!meetDate || !meetName || !swimmer || !parents || row["Count of Events With Results"] <= 0) continue;
           const parentSet = new Set();
-          (Array.isArray(parents) ? parents : parents.split(';')).forEach(p => parentSet.add(p.trim()));
-          if (typeof row["Associated Parents For Swimmer"] === "string") {
-            row["Associated Parents For Swimmer"].split(';').forEach(p => parentSet.add(p.trim()));
+          const allParents = (Array.isArray(parents) ? parents : parents.split(';')).map(p => p.trim()).filter(Boolean);
+          allParents.forEach(p => {
+            if (parentExpansionMap[p]) {
+              parentExpansionMap[p].forEach(fam => parentSet.add(fam));
+            } else {
+              parentSet.add(p);
+            }
+          });').forEach(p => parentSet.add(p.trim()));
           }
           const parentSetKey = Array.from(parentSet).sort().join('|');
           const firstParent = parentSetKey.split('|')[0];
