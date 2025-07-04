@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Volunteer Requirement Report - Families</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f8f8f8;
+      color: #333;
+    }
+    .main-content-wrapper {
+      width: 960px;
+      margin: 0 auto;
+      overflow-x: auto;
+      padding: 10px;
+    }
+    h1 {
+      text-align: center;
+      color: #0156B3;
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+    p {
+      text-align: center;
+      color: #555;
+    }
+    .dropdown-container {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+    .dropdown-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    label {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    select, input[type="text"], button {
+      padding: 6px 8px;
+      font-size: 0.8em;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8em;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 6px;
+      border: 1px solid #ccc;
+      text-align: left;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    th {
+      background-color: #e5f1ff;
+      position: sticky;
+      top: 50px;
+      z-index: 1;
+      color: #0156B3;
+    }
+    tbody tr:nth-child(even) { background-color: #fdfdfd; }
+    tbody tr:nth-child(odd) { background-color: #ffffff; }
+    tbody tr:hover { background-color: #eaf6ff; }
+    .met-yes { font-weight: bold; color: #28a745; text-align: center; }
+    .met-no { font-weight: bold; color: #dc3545; text-align: center; }
+    .met-excused { font-weight: bold; color: #6c757d; text-align: center; }
+    .highlight-excused { background-color: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <div class="main-content-wrapper">
+    <h1>Volunteer Requirement Report (by Family)</h1>
+    <p>Each row represents a family's participation and volunteer status for a given meet.</p>
+    <div class="dropdown-container">
+      <div class="dropdown-box">
+        <label for="familyNameFilterSelect">Filter by Family:</label>
+        <select id="familyNameFilterSelect"><option value="">All Families</option></select>
+      </div>
+      <div class="dropdown-box">
+        <label for="familySearchInput">Search Family Name:</label>
+        <input type="text" id="familySearchInput" placeholder="e.g. Ackerson" />
+      </div>
+      <div class="dropdown-box">
+        <label for="meetFilterSelect">Filter by Meet:</label>
+        <select id="meetFilterSelect"><option value="">All Meets</option></select>
+      </div>
+      <div class="dropdown-box">
+        <label for="metFilterSelect">Filter by Met Requirement:</label>
+        <select id="metFilterSelect">
+          <option value="">All</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+          <option value="N/A">N/A</option>
+          <option value="EXCUSED">EXCUSED</option>
+        </select>
+      </div>
+      <div class="dropdown-box" style="align-self: flex-end;">
+        <button onclick="downloadExcusedList()">Download Excused List</button>
+      </div>
+    </div>
+    <div id="report-container">Loading...</div>
+  </div>
+  <script>
+    const EXCUSED_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/main/excused_families.json';
+    let allRows = [];
+    let excusedLookup = new Set();
+    let currentFilterFamily = "", currentFilterFamilySearch = "", currentFilterMet = "", currentFilterMeet = "";
+
+    async function loadExcusedList() {
+      try {
+        const res = await fetch(EXCUSED_DATA_URL);
+        const data = await res.json();
+        data.forEach(item => {
+          excusedLookup.add(item.Meet + '|' + item.Family);
+        });
+      } catch (e) {
+        console.warn("Excused list not loaded", e);
+      }
+    }
+
+    function updateDropdowns(families, meets) {
+      const famSelect = document.getElementById('familyNameFilterSelect');
+      const meetSelect = document.getElementById('meetFilterSelect');
+      famSelect.innerHTML = '<option value="">All Families</option>';
+      meetSelect.innerHTML = '<option value="">All Meets</option>';
+      families.sort().forEach(f => famSelect.append(new Option(f, f)));
+      meets.sort().forEach(m => meetSelect.append(new Option(m, m)));
+    }
+
+    function applyFiltersAndRender() {
+      let filtered = allRows.filter(row =>
+        (!currentFilterFamily || row.family === currentFilterFamily) &&
+        (!currentFilterFamilySearch || row.family.toLowerCase().includes(currentFilterFamilySearch)) &&
+        (!currentFilterMet || row.met === currentFilterMet) &&
+        (!currentFilterMeet || row.meet === currentFilterMeet)
+      );
+
+      const container = document.getElementById('report-container');
+      const table = document.createElement('table');
+      table.innerHTML = `<thead><tr>
+        <th>Meet</th><th>Family</th><th>Swimmer(s)</th><th>Parent(s)</th>
+        <th>Job(s)</th><th>Swam?</th><th>Worked?</th><th>Met?</th><th>Excused?</th>
+      </tr></thead><tbody>
+        ${filtered.map(row => `
+          <tr class="${row.met === 'EXCUSED' ? 'highlight-excused' : ''}">
+            <td>${row.meet}</td>
+            <td>${row.family}</td>
+            <td>${row.swimmers}</td>
+            <td>${row.parents}</td>
+            <td>${row.jobs}</td>
+            <td>${row.competed}</td>
+            <td>${row.volunteered}</td>
+            <td class="met-${row.met.toLowerCase()}">${row.met}</td>
+            <td><input type="checkbox" data-key="${row.meet}|${row.family}" ${row.met === 'EXCUSED' ? 'checked disabled' : ''}></td>
+          </tr>`).join('')}
+      </tbody>`;
+      container.innerHTML = '';
+      container.appendChild(table);
+    }
+
+    function downloadExcusedList() {
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)');
+      const rows = Array.from(checkboxes).map(cb => {
+        const [meet, family] = cb.dataset.key.split('|');
+        return { Meet: meet, Family: family };
+      });
+      const csv = "Meet,Family\n" + rows.map(r => `"${r.Meet}","${r.Family}"`).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "excused_families.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Placeholder for data loader (you'd insert your existing fetch & row processing here)
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadExcusedList();
+      // Placeholder demo row for UI testing:
+      allRows = [{
+        meet: "06-11 - 2025 Lake Wilderness at Hurricanes",
+        family: "Ackerson",
+        swimmers: "Adam, Mary",
+        parents: "Anne, Brian",
+        jobs: "LANE TIMER",
+        competed: "YES",
+        volunteered: "NO",
+        met: excusedLookup.has("06-11 - 2025 Lake Wilderness at Hurricanes|Ackerson") ? "EXCUSED" : "NO"
+      }];
+      const familySet = new Set(allRows.map(r => r.family));
+      const meetSet = new Set(allRows.map(r => r.meet));
+      updateDropdowns([...familySet], [...meetSet]);
+      applyFiltersAndRender();
+
+      document.getElementById('familyNameFilterSelect').addEventListener('change', e => {
+        currentFilterFamily = e.target.value;
+        applyFiltersAndRender();
+      });
+      document.getElementById('familySearchInput').addEventListener('input', e => {
+        currentFilterFamilySearch = e.target.value.toLowerCase();
+        applyFiltersAndRender();
+      });
+      document.getElementById('metFilterSelect').addEventListener('change', e => {
+        currentFilterMet = e.target.value;
+        applyFiltersAndRender();
+      });
+      document.getElementById('meetFilterSelect').addEventListener('change', e => {
+        currentFilterMeet = e.target.value;
+        applyFiltersAndRender();
+      });
+    });
+  </script>
+</body>
+</html>
