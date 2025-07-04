@@ -1,22 +1,15 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Volunteer Requirement Report - Families</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f8f8f8;
       margin: 20px;
-      background-color: #f8f8f8;
       color: #333;
-    }
-    .main-content-wrapper {
-      width: 960px;
-      margin: 0 auto;
-      overflow-x: auto;
-      padding: 10px;
     }
     h1 {
       text-align: center;
@@ -24,204 +17,280 @@
       font-size: 2em;
       margin-bottom: 10px;
     }
-    p {
-      text-align: center;
-      color: #555;
+    .main-content-wrapper {
+      max-width: 950px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
     }
     .dropdown-container {
       display: flex;
-      justify-content: center;
+      justify-content: space-around;
       flex-wrap: wrap;
       margin-bottom: 12px;
-      gap: 12px;
     }
     .dropdown-box {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
+      margin: 10px;
     }
     label {
       font-weight: bold;
+      display: block;
       margin-bottom: 4px;
     }
-    select, input[type="text"], button {
-      padding: 6px 8px;
-      font-size: 0.8em;
+    select, input[type="text"] {
+      padding: 6px 10px;
+      font-size: 0.9em;
       border-radius: 4px;
       border: 1px solid #ccc;
+      width: 200px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.8em;
-      margin-top: 10px;
+      font-size: 0.85em;
     }
     th, td {
-      padding: 6px;
       border: 1px solid #ccc;
+      padding: 8px;
       text-align: left;
       white-space: nowrap;
-      text-overflow: ellipsis;
     }
     th {
-      background-color: #e5f1ff;
-      position: sticky;
-      top: 50px;
-      z-index: 1;
+      background: #e5f1ff;
       color: #0156B3;
     }
-    tbody tr:nth-child(even) { background-color: #fdfdfd; }
-    tbody tr:nth-child(odd) { background-color: #ffffff; }
-    tbody tr:hover { background-color: #eaf6ff; }
-    .met-yes { font-weight: bold; color: #28a745; text-align: center; }
-    .met-no { font-weight: bold; color: #dc3545; text-align: center; }
-    .met-excused { font-weight: bold; color: #6c757d; text-align: center; }
-    .highlight-excused { background-color: #f4f4f4; }
+    tbody tr:nth-child(even) { background: #fdfdfd; }
+    tbody tr:nth-child(odd) { background: #ffffff; }
+    tbody tr:hover { background: #eaf6ff; }
+    .met-yes { color: #28a745; font-weight: bold; text-align: center; }
+    .met-no { color: #dc3545; font-weight: bold; text-align: center; }
+    .download-button {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 16px;
+      background: #0156B3;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
   </style>
 </head>
 <body>
   <div class="main-content-wrapper">
     <h1>Volunteer Requirement Report (by Family)</h1>
-    <p>Each row represents a family's participation and volunteer status for a given meet.</p>
     <div class="dropdown-container">
       <div class="dropdown-box">
-        <label for="familyNameFilterSelect">Filter by Family:</label>
-        <select id="familyNameFilterSelect"><option value="">All Families</option></select>
+        <label for="familyFilter">Filter by Family</label>
+        <select id="familyFilter"><option value="">All</option></select>
       </div>
       <div class="dropdown-box">
-        <label for="familySearchInput">Search Family Name:</label>
-        <input type="text" id="familySearchInput" placeholder="e.g. Ackerson" />
+        <label for="meetFilter">Filter by Meet</label>
+        <select id="meetFilter"><option value="">All</option></select>
       </div>
       <div class="dropdown-box">
-        <label for="meetFilterSelect">Filter by Meet:</label>
-        <select id="meetFilterSelect"><option value="">All Meets</option></select>
-      </div>
-      <div class="dropdown-box">
-        <label for="metFilterSelect">Filter by Met Requirement:</label>
-        <select id="metFilterSelect">
+        <label for="metFilter">Filter by Met?</label>
+        <select id="metFilter">
           <option value="">All</option>
           <option value="YES">YES</option>
           <option value="NO">NO</option>
           <option value="N/A">N/A</option>
-          <option value="EXCUSED">EXCUSED</option>
         </select>
-      </div>
-      <div class="dropdown-box" style="align-self: flex-end;">
-        <button onclick="downloadExcusedList()">Download Excused List</button>
       </div>
     </div>
     <div id="report-container">Loading...</div>
+    <button class="download-button" onclick="downloadCSV()">Download CSV</button>
   </div>
+
   <script>
-    const EXCUSED_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/main/excused_families.json';
-    let allRows = [];
-    let excusedLookup = new Set();
-    let currentFilterFamily = "", currentFilterFamilySearch = "", currentFilterMet = "", currentFilterMeet = "";
+    const SWIMMER_URL = "2025_swimmerdata.json";
+    const VOLUNTEER_URL = "2025_volunteerdata.json";
+    const EXCUSED_URL = "excused_families.json";
 
-    async function loadExcusedList() {
-      try {
-        const res = await fetch(EXCUSED_DATA_URL);
-        const data = await res.json();
-        data.forEach(item => {
-          excusedLookup.add(item.Meet + '|' + item.Family);
-        });
-      } catch (e) {
-        console.warn("Excused list not loaded", e);
+    async function loadJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed to load ${url}`);
+      return res.json();
+    }
+
+    function extractFirstName(name) {
+      if (!name) return "";
+      const parts = name.split(",");
+      return parts.length === 2 ? parts[1].trim().split(" ")[0] : name;
+    }
+
+    function extractLastName(name) {
+      if (!name) return "";
+      return name.split(",")[0].trim();
+    }
+
+    async function generateReport() {
+      const [swimmerData, volunteerData, excusedData] = await Promise.all([
+        loadJSON(SWIMMER_URL),
+        loadJSON(VOLUNTEER_URL),
+        loadJSON(EXCUSED_URL)
+      ]);
+
+      const excusedSet = new Set(excusedData.map(row => row["Family"] + "|" + row["Meet"]));
+      const swimmerFields = ["Swimmer 1","Swimmer 2","Swimmer 3","Swimmer 4","Swimmer 5","Swimmer 6","Swimmer 7","Swimmer 8","Swimmer 9"];
+
+      const reportMap = new Map();
+
+      // Volunteer file determines rows
+      for (const row of volunteerData.values) {
+        const [date, meetName, swimmer, , , parentsRaw] = row;
+        const parents = parentsRaw ? parentsRaw.split(";").map(p => p.trim()).filter(Boolean) : [];
+        const parentKey = parents.join("|");
+        const key = `${date}|${meetName}|${parentKey}`;
+        if (!reportMap.has(key)) {
+          const family = extractLastName(parents[0] || swimmer);
+          reportMap.set(key, {
+            Meet: `${date.slice(5)} - ${meetName}`,
+            Family: family,
+            Swimmers: new Set([swimmer]),
+            Parents: new Set(parents),
+            Jobs: new Set(),
+            Swam: "YES",
+            Worked: "NO",
+            Met: "NO",
+            Excused: excusedSet.has(family + "|" + `${date.slice(5)} - ${meetName}`)
+          });
+        } else {
+          reportMap.get(key).Swimmers.add(swimmer);
+        }
       }
-    }
 
-    function updateDropdowns(families, meets) {
-      const famSelect = document.getElementById('familyNameFilterSelect');
-      const meetSelect = document.getElementById('meetFilterSelect');
-      famSelect.innerHTML = '<option value="">All Families</option>';
-      meetSelect.innerHTML = '<option value="">All Meets</option>';
-      families.sort().forEach(f => famSelect.append(new Option(f, f)));
-      meets.sort().forEach(m => meetSelect.append(new Option(m, m)));
-    }
+      for (const row of swimmerData.values) {
+        const [date, meetName, parent, job, , , ...swimmers] = row;
+        const swimmerNames = swimmers.filter(Boolean);
+        const parentKey = parent;
+        const key = `${date}|${meetName}|${parentKey}`;
+        const entry = Array.from(reportMap.entries()).find(([k]) => k.startsWith(`${date}|${meetName}`) && k.includes(parentKey));
+        const mapKey = entry?.[0] || `${date}|${meetName}|${parentKey}`;
 
-    function applyFiltersAndRender() {
-      let filtered = allRows.filter(row =>
-        (!currentFilterFamily || row.family === currentFilterFamily) &&
-        (!currentFilterFamilySearch || row.family.toLowerCase().includes(currentFilterFamilySearch)) &&
-        (!currentFilterMet || row.met === currentFilterMet) &&
-        (!currentFilterMeet || row.meet === currentFilterMeet)
-      );
+        if (!reportMap.has(mapKey)) {
+          reportMap.set(mapKey, {
+            Meet: `${date.slice(5)} - ${meetName}`,
+            Family: extractLastName(parent),
+            Swimmers: new Set(swimmerNames),
+            Parents: new Set([parent]),
+            Jobs: new Set(job ? [job] : []),
+            Swam: swimmerNames.length ? "YES" : "NO",
+            Worked: job ? "YES" : "NO",
+            Met: swimmerNames.length && job ? "YES" : "NO",
+            Excused: excusedSet.has(extractLastName(parent) + "|" + `${date.slice(5)} - ${meetName}`)
+          });
+        } else {
+          const item = reportMap.get(mapKey);
+          swimmerNames.forEach(sw => item.Swimmers.add(sw));
+          if (job) item.Jobs.add(job);
+          item.Parents.add(parent);
+          item.Worked = "YES";
+          item.Met = item.Swam === "YES" && item.Worked === "YES" ? "YES" : "NO";
+        }
+      }
 
-      const container = document.getElementById('report-container');
-      const table = document.createElement('table');
+      const rows = Array.from(reportMap.values());
+      const familySet = new Set();
+      const meetSet = new Set();
+      const container = document.getElementById("report-container");
+      const table = document.createElement("table");
       table.innerHTML = `<thead><tr>
-        <th>Meet</th><th>Family</th><th>Swimmer(s)</th><th>Parent(s)</th>
-        <th>Job(s)</th><th>Swam?</th><th>Worked?</th><th>Met?</th><th>Excused?</th>
-      </tr></thead><tbody>
-        ${filtered.map(row => `
-          <tr class="${row.met === 'EXCUSED' ? 'highlight-excused' : ''}">
-            <td>${row.meet}</td>
-            <td>${row.family}</td>
-            <td>${row.swimmers}</td>
-            <td>${row.parents}</td>
-            <td>${row.jobs}</td>
-            <td>${row.competed}</td>
-            <td>${row.volunteered}</td>
-            <td class="met-${row.met.toLowerCase()}">${row.met}</td>
-            <td><input type="checkbox" data-key="${row.meet}|${row.family}" class="excused-checkbox" ${excusedLookup.has(row.meet + "|" + row.family) ? "checked" : ""}></td>
-          </tr>`).join('')}
-      </tbody>`;
+        <th>Meet</th><th>Family</th><th>Swimmers</th><th>Parents</th>
+        <th>Jobs</th><th>Swam?</th><th>Worked?</th><th>Met?</th><th>Excused</th>
+      </tr></thead><tbody id="report-body"></tbody>`;
       container.innerHTML = '';
       container.appendChild(table);
+
+      const tbody = table.querySelector("tbody");
+      rows.forEach(row => {
+        familySet.add(row.Family);
+        meetSet.add(row.Meet);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.Meet}</td>
+          <td>${row.Family}</td>
+          <td>${[...row.Swimmers].map(extractFirstName).join(", ")}</td>
+          <td>${[...row.Parents].map(extractFirstName).join(", ")}</td>
+          <td>${[...row.Jobs].join(", ") || "-"}</td>
+          <td>${row.Swam}</td>
+          <td>${row.Worked}</td>
+          <td class="met-${row.Met === "YES" ? "yes" : "no"}">${row.Met}</td>
+          <td><input type="checkbox" class="excused-box" data-key="${row.Family}|${row.Meet}" ${row.Excused ? "checked" : ""}></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Populate dropdowns
+      familySet.forEach(f => {
+        const opt = document.createElement("option");
+        opt.value = f;
+        opt.textContent = f;
+        document.getElementById("familyFilter").appendChild(opt);
+      });
+      meetSet.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        document.getElementById("meetFilter").appendChild(opt);
+      });
+
+      // Filtering logic
+      const filters = {
+        family: "",
+        meet: "",
+        met: ""
+      };
+
+      function applyFilters() {
+        const rows = tbody.querySelectorAll("tr");
+        rows.forEach(row => {
+          const family = row.children[1].textContent;
+          const meet = row.children[0].textContent;
+          const met = row.children[7].textContent;
+          const show =
+            (!filters.family || family === filters.family) &&
+            (!filters.meet || meet === filters.meet) &&
+            (!filters.met || met === filters.met);
+          row.style.display = show ? "" : "none";
+        });
+      }
+
+      document.getElementById("familyFilter").onchange = e => {
+        filters.family = e.target.value;
+        applyFilters();
+      };
+      document.getElementById("meetFilter").onchange = e => {
+        filters.meet = e.target.value;
+        applyFilters();
+      };
+      document.getElementById("metFilter").onchange = e => {
+        filters.met = e.target.value;
+        applyFilters();
+      };
     }
 
-    function downloadExcusedList() {
-      const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)');
-      const rows = Array.from(checkboxes).map(cb => {
-        const [meet, family] = cb.dataset.key.split('|');
-        return { Meet: meet, Family: family };
+    function downloadCSV() {
+      const rows = [...document.querySelectorAll("#report-body tr")];
+      const csv = ["Meet,Family,Swimmers,Parents,Jobs,Swam?,Worked?,Met?,Excused"];
+      rows.forEach(row => {
+        const cells = [...row.children];
+        const excused = cells[8].querySelector("input").checked ? "YES" : "NO";
+        csv.push(cells.slice(0, 8).map(td => `"${td.textContent}"`).join(",") + `,"${excused}"`);
       });
-      const csv = "Meet,Family\n" + rows.map(r => `"${r.Meet}","${r.Family}"`).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "excused_families.csv";
-      a.click();
-      URL.revokeObjectURL(url);
+      const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "volunteer_report.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
-    // Placeholder for data loader (you'd insert your existing fetch & row processing here)
-    document.addEventListener('DOMContentLoaded', async () => {
-      await loadExcusedList();
-      // Placeholder demo row for UI testing:
-      allRows = [{
-        meet: "06-11 - 2025 Lake Wilderness at Hurricanes",
-        family: "Ackerson",
-        swimmers: "Adam, Mary",
-        parents: "Anne, Brian",
-        jobs: "LANE TIMER",
-        competed: "YES",
-        volunteered: "NO",
-        met: excusedLookup.has("06-11 - 2025 Lake Wilderness at Hurricanes|Ackerson") ? "EXCUSED" : "NO"
-      }];
-      const familySet = new Set(allRows.map(r => r.family));
-      const meetSet = new Set(allRows.map(r => r.meet));
-      updateDropdowns([...familySet], [...meetSet]);
-      applyFiltersAndRender();
-
-      document.getElementById('familyNameFilterSelect').addEventListener('change', e => {
-        currentFilterFamily = e.target.value;
-        applyFiltersAndRender();
-      });
-      document.getElementById('familySearchInput').addEventListener('input', e => {
-        currentFilterFamilySearch = e.target.value.toLowerCase();
-        applyFiltersAndRender();
-      });
-      document.getElementById('metFilterSelect').addEventListener('change', e => {
-        currentFilterMet = e.target.value;
-        applyFiltersAndRender();
-      });
-      document.getElementById('meetFilterSelect').addEventListener('change', e => {
-        currentFilterMeet = e.target.value;
-        applyFiltersAndRender();
-      });
-    });
+    document.addEventListener("DOMContentLoaded", generateReport);
   </script>
 </body>
 </html>
