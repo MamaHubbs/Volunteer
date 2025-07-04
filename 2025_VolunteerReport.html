@@ -49,10 +49,10 @@
       border: 1px solid #ccc;
     }
     #familyNameFilterSelect {
-      width: 250px;
+      width: 180px;
     }
     #familySearchInput {
-      min-width: 180px;
+      min-width: 160px;
     }
     table {
       table-layout: fixed;
@@ -85,18 +85,6 @@
     tbody tr:hover { background-color: #eaf6ff; }
     .met-yes { font-weight: bold; color: #28a745; text-align: center; }
     .met-no { font-weight: bold; color: #dc3545; text-align: center; }
-
-    th:nth-child(1), td:nth-child(1) { width: 25%; }
-    th:nth-child(2), td:nth-child(2) { width: 13%; }
-    th:nth-child(3), td:nth-child(3) { width: 20%; }
-    th:nth-child(4), td:nth-child(4) { width: 20%; }
-    th:nth-child(5), td:nth-child(5) { width: 12%; }
-    th:nth-child(6), td:nth-child(6),
-    th:nth-child(7), td:nth-child(7),
-    th:nth-child(8), td:nth-child(8) {
-      width: 4%;
-      text-align: center;
-    }
   </style>
 </head>
 <body>
@@ -114,31 +102,34 @@
         <label for="familySearchInput">Search Family Name:</label>
         <input type="text" id="familySearchInput" placeholder="e.g. Ackerson" />
       </div>
-  
-<div class="dropdown-box">
-  <label for="metFilterSelect">Filter by Met Requirement:</label>
-  <select id="metFilterSelect">
-    <option value="">All</option>
-    <option value="YES">YES</option>
-    <option value="NO">NO</option>
-    <option value="N/A">N/A</option>
-  </select>
-</div>
-
-<div class="dropdown-box">
-  <label for="meetFilterSelect">Filter by Meet:</label>
-  <select id="meetFilterSelect">
-    <option value="">All Meets</option>
-  </select>
-</div>
-
-          </div>
+      <div class="dropdown-box">
+        <label for="metFilterSelect">Filter by Met Requirement:</label>
+        <select id="metFilterSelect">
+          <option value="">All</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+          <option value="N/A">N/A</option>
+        </select>
+      </div>
+      <div class="dropdown-box">
+        <label for="meetFilterSelect">Filter by Meet:</label>
+        <select id="meetFilterSelect">
+          <option value="">All Meets</option>
+        </select>
+      </div>
+    </div>
     <div id="report-container">Loading...</div>
   </div>
-  
+
   <script>
     const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
     const VOLUNTEER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
+
+    let allRows = [];
+    let currentFilterFamily = "";
+    let currentFilterFamilySearch = "";
+    let currentFilterMet = "";
+    let currentFilterMeet = "";
 
     function extractFirstName(fullName) {
       if (!fullName) return "";
@@ -162,13 +153,24 @@
       return raw.values;
     }
 
-    function updateFamilyDropdown(options) {
+    function updateFamilyDropdown(families) {
       const select = document.getElementById('familyNameFilterSelect');
       select.innerHTML = '<option value="">All Families</option>';
-      options.sort().forEach(name => {
+      families.sort().forEach(name => {
         const opt = document.createElement('option');
         opt.value = name;
         opt.textContent = name;
+        select.appendChild(opt);
+      });
+    }
+
+    function updateMeetDropdown(meets) {
+      const select = document.getElementById('meetFilterSelect');
+      select.innerHTML = '<option value="">All Meets</option>';
+      meets.sort().forEach(meet => {
+        const opt = document.createElement('option');
+        opt.value = meet;
+        opt.textContent = meet;
         select.appendChild(opt);
       });
     }
@@ -180,6 +182,12 @@
       }
       if (currentFilterFamilySearch) {
         filtered = filtered.filter(row => row.family.toLowerCase().includes(currentFilterFamilySearch));
+      }
+      if (currentFilterMet) {
+        filtered = filtered.filter(row => row.met === currentFilterMet);
+      }
+      if (currentFilterMeet) {
+        filtered = filtered.filter(row => row.meet === currentFilterMeet);
       }
 
       filtered.sort((a, b) => a.meet.localeCompare(b.meet));
@@ -206,9 +214,6 @@
       container.appendChild(table);
     }
 
-    let currentFilterFamily = "";
-    let currentFilterFamilySearch = "";
-
     async function generateFamilyReport() {
       const container = document.getElementById('report-container');
       try {
@@ -219,12 +224,11 @@
 
         const reportMap = new Map();
 
-        // Swimmer loop
-        swimmerRows.forEach(row => {
-          const [meetDate, meetName, swimmerName, events, volunteerCount, parentStr] = row;
-          if (!meetDate || !meetName || !swimmerName || !parentStr || events <= 0) return;
+        // Swimmer records
+        swimmerRows.forEach(([meetDate, meetName, swimmerName, events, volunteerCount, parentsStr]) => {
+          if (!meetDate || !meetName || !swimmerName || !parentsStr || events <= 0) return;
 
-          const parents = parentStr.split(";").map(p => p.trim()).filter(Boolean);
+          const parents = parentsStr.split(";").map(p => p.trim()).filter(Boolean);
           const parentKey = parents.sort().join("|");
           const key = `${meetDate}|${meetName}|${parentKey}`;
           const familyName = extractLastName(parents[0]);
@@ -247,12 +251,10 @@
           entry.Competed = true;
         });
 
-        // Volunteer loop
-        volunteerRows.forEach(row => {
-          const [meetDate, meetName, parent, job] = row;
+        // Volunteer records
+        volunteerRows.forEach(([meetDate, meetName, parent, job]) => {
           if (!meetDate || !meetName || !parent || !job) return;
 
-          // Try to find an existing key with this parent
           let foundKey = null;
           for (const [k, v] of reportMap.entries()) {
             if (k.startsWith(`${meetDate}|${meetName}`) && v.Parents.has(parent)) {
@@ -282,7 +284,7 @@
           entry.Volunteered = true;
         });
 
-        const allRows = Array.from(reportMap.values()).map(entry => {
+        allRows = Array.from(reportMap.values()).map(entry => {
           const met = entry.Competed ? (entry.Volunteered ? "YES" : "NO") : "N/A";
           return {
             meet: `${entry["Meet Date"].slice(5)} - ${entry["Meet Name"]}`,
@@ -297,6 +299,7 @@
         });
 
         updateFamilyDropdown([...new Set(allRows.map(r => r.family))]);
+        updateMeetDropdown([...new Set(allRows.map(r => r.meet))]);
         applyFiltersAndRender(allRows);
 
         document.getElementById('familyNameFilterSelect').addEventListener('change', e => {
@@ -306,6 +309,16 @@
 
         document.getElementById('familySearchInput').addEventListener('input', e => {
           currentFilterFamilySearch = e.target.value.toLowerCase();
+          applyFiltersAndRender(allRows);
+        });
+
+        document.getElementById('metFilterSelect').addEventListener('change', e => {
+          currentFilterMet = e.target.value;
+          applyFiltersAndRender(allRows);
+        });
+
+        document.getElementById('meetFilterSelect').addEventListener('change', e => {
+          currentFilterMeet = e.target.value;
           applyFiltersAndRender(allRows);
         });
 
