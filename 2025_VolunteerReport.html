@@ -226,7 +226,9 @@
 
           const parentLastName = extractLastName(parent);
           const familyName = parentLastName;
-          const key = `${meetDate}|${meetName}|${parent}`;
+          const parents = new Set([parent]); // current field
+const parentKey = Array.from(parents).sort().join('|');
+const key = `${meetDate}|${meetName}|${parentKey}`;
 
           if (!reportMap.has(key)) {
             reportMap.set(key, {
@@ -245,32 +247,47 @@
           entry.Competed = true;
         }
 
-        for (const row of volunteersRaw) {
-          const meetDate = row["Meet Date"];
-          const meetName = row["Meet Name"];
-          const parents = row["Associated Parents For Swimmer"];
-          if (!meetDate || !meetName || !parents) continue;
+for (const row of volunteersRaw) {
+  const meetDate = row["Meet Date"];
+  const meetName = row["Meet Name"];
+  const parents = row["Associated Parents For Swimmer"];
+  if (!meetDate || !meetName || !parents) continue;
 
-          const parentList = parents.split(";").map(p => p.trim()).filter(Boolean);
-          parentList.forEach(parent => {
-            const key = `${meetDate}|${meetName}|${parent}`;
-            if (!reportMap.has(key)) {
-              reportMap.set(key, {
-                "Meet Date": meetDate,
-                "Meet Name": meetName,
-                "Family": extractLastName(parent),
-                "Parents": new Set([parent]),
-                "Swimmers": new Set(),
-                "Jobs": new Set(),
-                "Competed": false,
-                "Volunteered": false
-              });
-            }
-            const entry = reportMap.get(key);
-            entry.Parents.add(parent);
-            entry.Volunteered = true;
-          });
-        }
+  const parentList = parents.split(";").map(p => p.trim()).filter(Boolean);
+
+  // Try to find an existing entry that matches at least one of the parents
+  let entryKey = null;
+  for (const [k, v] of reportMap.entries()) {
+    if (k.startsWith(`${meetDate}|${meetName}`)) {
+      const existingParents = Array.from(v.Parents);
+      if (parentList.some(p => existingParents.includes(p))) {
+        entryKey = k;
+        break;
+      }
+    }
+  }
+
+  // If no matching entry found, create a new one using sorted parent list
+  if (!entryKey) {
+    const parentKey = parentList.sort().join('|');
+    entryKey = `${meetDate}|${meetName}|${parentKey}`;
+    reportMap.set(entryKey, {
+      "Meet Date": meetDate,
+      "Meet Name": meetName,
+      "Family": extractLastName(parentList[0]),
+      "Parents": new Set(parentList),
+      "Swimmers": new Set(),
+      "Jobs": new Set(),
+      "Competed": false,
+      "Volunteered": false
+    });
+  }
+
+  // Update the matching or new entry
+  const entry = reportMap.get(entryKey);
+  parentList.forEach(p => entry.Parents.add(p));
+  entry.Volunteered = true;
+}
 
         const allRows = Array.from(reportMap.values()).map(entry => {
           const met = entry.Competed ? (entry.Volunteered ? "YES" : "NO") : "N/A";
