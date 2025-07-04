@@ -117,7 +117,24 @@
     </div>
     <div id="report-container">Loading...</div>
   </div>
+  
+<div class="dropdown-box">
+  <label for="metFilterSelect">Filter by Met Requirement:</label>
+  <select id="metFilterSelect">
+    <option value="">All</option>
+    <option value="YES">YES</option>
+    <option value="NO">NO</option>
+    <option value="N/A">N/A</option>
+  </select>
+</div>
 
+<div class="dropdown-box">
+  <label for="meetFilterSelect">Filter by Meet:</label>
+  <select id="meetFilterSelect">
+    <option value="">All Meets</option>
+  </select>
+</div>
+  
   <script>
     const SWIMMER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_swimmerdata.json';
     const VOLUNTEER_DATA_URL = 'https://raw.githubusercontent.com/MamaHubbs/Volunteer/refs/heads/main/2025_volunteerdata.json';
