@@ -153,10 +153,30 @@
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Failed to load ${url}`);
       const raw = await res.json();
-      return raw.fields
-        ? raw.values.map(row => Object.fromEntries(raw.fields.map((k, i) => [k, row[i]])))
-        : raw;
-    }
+if (url.includes('volunteerdata')) {
+  return raw.values.map(row => ({
+    "Meet Date": row[0],
+    "Meet Name": row[1],
+    "Swimmer Name": row[2],
+    "Count of Events With Results": row[3],
+    "Volunteer Count": row[4],
+    "Associated Parents For Swimmer": row[5]
+  }));
+} else if (url.includes('swimmerdata')) {
+  return raw.values.map(row => ({
+    "Meet Date": row[0],
+    "Meet Name": row[1],
+    "Parent": row[2],
+    "Job": row[3],
+    "Assignment": row[4],
+    "Count of Events With Results": row[5],
+    "Swimmer 1": row[6], "Swimmer 2": row[7], "Swimmer 3": row[8],
+    "Swimmer 4": row[9], "Swimmer 5": row[10], "Swimmer 6": row[11],
+    "Swimmer 7": row[12], "Swimmer 8": row[13], "Swimmer 9": row[14]
+  }));
+} else {
+  return raw; // for excused file, already in array of objects
+}
 
     function buildKey(meet, family) {
       return `${meet}|||${family}`;
