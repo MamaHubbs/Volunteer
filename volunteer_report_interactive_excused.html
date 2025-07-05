@@ -154,8 +154,7 @@ async function loadJsonData(url) {
   if (!res.ok) throw new Error(`Failed to load ${url}`);
   const raw = await res.json();
 
-  // Volunteer Data
-  if (url.includes('volunteerdata')) {
+  if (url.includes("volunteerdata")) {
     return raw.values.map(row => ({
       "Meet Date": row[0],
       "Meet Name": row[1],
@@ -166,8 +165,7 @@ async function loadJsonData(url) {
     }));
   }
 
-  // Swimmer Data
-  if (url.includes('swimmerdata')) {
+  if (url.includes("swimmerdata")) {
     return raw.values.map(row => ({
       "Meet Date": row[0],
       "Meet Name": row[1],
@@ -181,12 +179,8 @@ async function loadJsonData(url) {
     }));
   }
 
-  // Excused Families
-  if (Array.isArray(raw)) {
-    return raw;
-  }
-
-  throw new Error("Unrecognized data format in " + url);
+  // Excused families JSON is already formatted as an array of objects
+  return raw;
 }
 
     function buildKey(meet, family) {
